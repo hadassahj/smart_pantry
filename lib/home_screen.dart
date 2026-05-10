@@ -1,4 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'account_tab.dart';
+import 'ai_assistant_tab.dart';
+import 'household_tab.dart';
 import 'pantry_tab.dart'; // Importăm noul tab
 
 class HomeScreen extends StatefulWidget {
@@ -11,18 +17,45 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
+  late String _householdId;
+
+  @override
+  void initState() {
+    super.initState();
+    _householdId = widget.householdId;
+  }
+
+  Future<void> _updateHouseholdId(String newHouseholdId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('pantry_household_id', newHouseholdId);
+
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .set({'householdId': newHouseholdId}, SetOptions(merge: true));
+    }
+
+    setState(() {
+      _householdId = newHouseholdId;
+      _currentIndex = 0;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Lista de ecrane (câte unul pentru fiecare iconiță din meniul de jos)
     final List<Widget> screens = [
-      PantryTab(householdId: widget.householdId), // 0: Cămara
-      const Center(
-          child: Text('Asistentul AI va fi aici 🤖',
-              style: TextStyle(fontSize: 20))), // 1: AI Chat
+      PantryTab(householdId: _householdId), // 0: Cămară
+      HouseholdTab(
+        householdId: _householdId,
+        onHouseholdChanged: _updateHouseholdId,
+      ),
+      AiAssistantTab(householdId: _householdId),
+      AccountTab(householdId: _householdId),
       const Center(
           child: Text('Setările contului vor fi aici ⚙️',
-              style: TextStyle(fontSize: 20))), // 2: Setări
+              style: TextStyle(fontSize: 20))), // 4: Setări
     ];
 
     return Scaffold(
@@ -31,9 +64,7 @@ class _HomeScreenState extends State<HomeScreen> {
             style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
       ),
-      // Aici e magia: afișăm doar ecranul corespunzător indexului selectat
       body: screens[_currentIndex],
-
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (int index) {
@@ -48,9 +79,19 @@ class _HomeScreenState extends State<HomeScreen> {
             label: 'Cămară',
           ),
           NavigationDestination(
+            icon: Icon(Icons.family_restroom_outlined),
+            selectedIcon: Icon(Icons.family_restroom),
+            label: 'Gospodărie',
+          ),
+          NavigationDestination(
             icon: Icon(Icons.auto_awesome_outlined),
             selectedIcon: Icon(Icons.auto_awesome),
             label: 'AI Chat',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Cont',
           ),
           NavigationDestination(
             icon: Icon(Icons.settings_outlined),

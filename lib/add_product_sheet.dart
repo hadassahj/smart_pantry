@@ -4,18 +4,30 @@ import 'package:intl/intl.dart'; // Avem nevoie pentru formatarea datei
 
 class AddProductSheet extends StatefulWidget {
   final String householdId;
-  const AddProductSheet({super.key, required this.householdId});
+  final String? prefilledName;
+  const AddProductSheet({
+    super.key,
+    required this.householdId,
+    this.prefilledName, // <--- ADAUGĂ ACEASTĂ LINIE
+  });
 
   @override
   State<AddProductSheet> createState() => _AddProductSheetState();
 }
 
 class _AddProductSheetState extends State<AddProductSheet> {
-  final TextEditingController _nameController = TextEditingController();
+  late final TextEditingController _nameController;
   int _quantity = 1;
   DateTime _selectedExpiryDate =
       DateTime.now().add(const Duration(days: 7)); // Default 7 zile
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Dacă am primit un nume de la scaner, îl punem direct în câmpul de text!
+    _nameController = TextEditingController(text: widget.prefilledName ?? '');
+  }
 
   // Funcția pentru a deschide calendarul
   Future<void> _pickDate() async {
