@@ -65,10 +65,11 @@ class _HomeScreenState extends State<HomeScreen> {
     ];
 
     return Scaffold(
+      // Eliminăm AppBar-ul sau îl facem invizibil
       appBar: AppBar(
-        title: const Text('Smart Pantry',
-            style: TextStyle(fontWeight: FontWeight.bold)),
-        centerTitle: true,
+        toolbarHeight: 0, // Îl facem de înălțime 0
+        elevation: 0,
+        backgroundColor: Colors.transparent,
       ),
       body: screens[_currentIndex],
       bottomNavigationBar: NavigationBar(

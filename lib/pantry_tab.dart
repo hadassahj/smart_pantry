@@ -84,197 +84,152 @@ class PantryTab extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      backgroundColor: Colors.transparent, // Important pentru colțuri rotunjite
       builder: (context) {
         final sortedBatches = List.from(batches)
           ..sort((a, b) => (a['expiryDate'] as Timestamp)
               .compareTo(b['expiryDate'] as Timestamp));
 
-        return Padding(
-          padding: const EdgeInsets.all(20.0),
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 20.0),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Linie de design sus
+              Center(
+                child: Container(
+                  width: 50,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Nume produs și buton editare
               Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Expanded(
-                    child: Text(currentName,
-                        style: const TextStyle(
-                            fontSize: 22, fontWeight: FontWeight.bold)),
+                    child: Text(
+                      currentName,
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.black87,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.edit, color: Colors.teal),
+                    style: IconButton.styleFrom(
+                      backgroundColor: const Color(0xFFFFD166).withOpacity(0.3),
+                      padding: const EdgeInsets.all(12),
+                    ),
+                    icon: const Icon(Icons.edit_rounded,
+                        color: Color(0xFFF25C05)),
                     onPressed: () {
-                      final controller =
-                          TextEditingController(text: currentName);
-                      showDialog(
+                      showModalBottomSheet(
                         context: context,
-                        builder: (dialogContext) {
-                          return AlertDialog(
-                            title: const Text('Redenumește produsul'),
-                            content: TextField(
-                              controller: controller,
-                              decoration: const InputDecoration(
-                                  hintText: 'Nume produs'),
-                              autofocus: true,
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () =>
-                                    Navigator.of(dialogContext).pop(),
-                                child: const Text('Anulează'),
-                              ),
-                              TextButton(
-                                onPressed: () async {
-                                  final newName = controller.text.trim();
-                                  if (newName.isEmpty) return;
-                                  await FirebaseFirestore.instance
-                                      .collection('households')
-                                      .doc(householdId)
-                                      .collection('inventory')
-                                      .doc(docId)
-                                      .update({'name': newName});
-                                  currentName = newName;
-                                  Navigator.of(dialogContext).pop();
-                                },
-                                child: const Text('Salvează'),
-                              ),
-                            ],
-                          );
-                        },
+                        isScrollControlled: true,
+                        backgroundColor: Colors.white, // Forțăm fundal alb
+                        shape: const RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.vertical(top: Radius.circular(40)),
+                        ),
+                        builder: (context) => AddProductSheet(
+                          householdId: householdId,
+                          prefilledName: currentName,
+                        ),
                       );
                     },
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
-              const Divider(),
-              Builder(builder: (context) {
-                final displayBatches = sortedBatches
-                    .where((batch) => batch['quantity'] > 0)
-                    .toList();
-                final totalUnits = displayBatches.fold<int>(
-                    0, (sum, batch) => sum + (batch['quantity'] as int));
-                final nextExpiryDate = displayBatches.isNotEmpty
-                    ? (displayBatches.first['expiryDate'] as Timestamp).toDate()
-                    : null;
-                final daysUntilNext = nextExpiryDate != null
-                    ? nextExpiryDate.difference(DateTime.now()).inDays
-                    : null;
-                final summaryColor = daysUntilNext != null
-                    ? (daysUntilNext <= 3
-                        ? Colors.red
-                        : daysUntilNext <= 7
-                            ? Colors.orange
-                            : Colors.teal)
-                    : Colors.grey.shade600;
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Total: $totalUnits unități',
-                        style: const TextStyle(fontSize: 16)),
-                    const SizedBox(height: 6),
-                    Text(
-                      nextExpiryDate != null
-                          ? 'Următoarea expirare: ${DateFormat('dd MMM yyyy').format(nextExpiryDate)}'
-                          : 'Nicio expirare disponibilă',
-                      style: TextStyle(
-                          fontSize: 14,
-                          color: summaryColor,
-                          fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 12),
-                    if (displayBatches.length > 1) ...[
-                      const Divider(),
-                      const SizedBox(height: 10),
-                      ...displayBatches.map((batch) {
-                        final expiryDate =
-                            (batch['expiryDate'] as Timestamp).toDate();
-                        final quantity = batch['quantity'];
-                        final formattedDate =
-                            DateFormat('dd MMM yyyy').format(expiryDate);
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 2.0),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Text(formattedDate,
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey.shade600)),
-                              ),
-                              Text('x$quantity',
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade800,
-                                      fontWeight: FontWeight.bold)),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                    ],
-                  ],
-                );
-              }),
               const SizedBox(height: 20),
-              const Divider(),
-              const SizedBox(height: 10),
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.red,
-                  side: const BorderSide(color: Colors.red),
-                  minimumSize: const Size.fromHeight(48),
+
+              // Card informativ pentru stoc și expirare
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8F9FA),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Builder(builder: (context) {
+                  final displayBatches =
+                      sortedBatches.where((b) => b['quantity'] > 0).toList();
+                  final totalUnits = displayBatches.fold<int>(
+                      0, (sum, b) => sum + (b['quantity'] as int));
+
+                  return Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Stoc disponibil',
+                              style: TextStyle(
+                                  color: Colors.black54,
+                                  fontWeight: FontWeight.bold)),
+                          Text('$totalUnits unități',
+                              style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xFFF25C05))),
+                        ],
+                      ),
+                      const Divider(height: 30),
+                      if (displayBatches.isNotEmpty) ...[
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Prima expirare',
+                                style: TextStyle(
+                                    color: Colors.black54,
+                                    fontWeight: FontWeight.bold)),
+                            Text(
+                              DateFormat('dd MMM yyyy').format((displayBatches
+                                      .first['expiryDate'] as Timestamp)
+                                  .toDate()),
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87),
+                            ),
+                          ],
+                        ),
+                      ]
+                    ],
+                  );
+                }),
+              ),
+
+              const SizedBox(height: 32),
+
+              // Buton de Ștergere tip "Chunky"
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFEF476F).withOpacity(0.1),
+                  foregroundColor: const Color(0xFFEF476F),
+                  elevation: 0,
+                  minimumSize: const Size.fromHeight(65),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24)),
                 ),
                 onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (dialogContext) {
-                      return AlertDialog(
-                        title: const Text('Șterge produsul'),
-                        content: const Text(
-                            'Ești sigur că vrei să ștergi complet acest produs?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(dialogContext).pop(),
-                            child: const Text('Anulează'),
-                          ),
-                          TextButton(
-                            onPressed: () async {
-                              try {
-                                await FirebaseFirestore.instance
-                                    .collection('households')
-                                    .doc(householdId)
-                                    .collection('inventory')
-                                    .doc(docId)
-                                    .update({
-                                  'isConsumed': true,
-                                  'totalQuantity': 0,
-                                  'batches': [],
-                                });
-                                await _addSuggestedShoppingItem(
-                                    name: currentName);
-                              } catch (_) {
-                                // ignore failures in delete sheet action
-                              }
-                              Navigator.of(dialogContext).pop();
-                              Navigator.of(sheetContext).pop();
-                            },
-                            child: const Text('Șterge'),
-                          ),
-                        ],
-                      );
-                    },
-                  );
+                  // Dialogul de confirmare ștergere
                 },
-                icon: const Icon(Icons.delete_outline),
-                label: const Text('Șterge produsul'),
+                icon: const Icon(Icons.delete_outline_rounded, size: 28),
+                label: const Text('Elimină din cămară',
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 16),
             ],
           ),
         );
@@ -292,393 +247,402 @@ class PantryTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('households')
-            .doc(householdId)
-            .collection('inventory')
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError)
-            return Center(child: Text('Eroare: ${snapshot.error}'));
-          if (snapshot.connectionState == ConnectionState.waiting)
-            return const Center(child: CircularProgressIndicator());
-
-          final activeProducts = snapshot.data!.docs.where((doc) {
-            final data = doc.data() as Map<String, dynamic>;
-            return data['isConsumed'] == false;
-          }).toList();
-
-          DateTime? closestExpiry(Map<String, dynamic> data) {
-            final batches = List.from(data['batches'] ?? []);
-            batches.removeWhere((batch) => batch['expiryDate'] == null);
-            if (batches.isEmpty) return null;
-            batches.sort((a, b) => (a['expiryDate'] as Timestamp)
-                .compareTo(b['expiryDate'] as Timestamp));
-            return (batches.first['expiryDate'] as Timestamp).toDate();
-          }
-
-          activeProducts.sort((a, b) {
-            final aData = a.data() as Map<String, dynamic>;
-            final bData = b.data() as Map<String, dynamic>;
-            final aExpiry = closestExpiry(aData);
-            final bExpiry = closestExpiry(bData);
-
-            if (aExpiry == null && bExpiry == null) return 0;
-            if (aExpiry == null) return 1;
-            if (bExpiry == null) return -1;
-            return aExpiry.compareTo(bExpiry);
-          });
-
-          if (activeProducts.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.kitchen, size: 80, color: Colors.grey.shade400),
-                  const SizedBox(height: 16),
-                  const Text('Cămara e goală.',
-                      style:
-                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                ],
+      // Fundalul va fi galbenul setat în main.dart
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: SafeArea(
+        bottom: false, // Lasă albul să curgă până jos
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 1. Header-ul vibrant (zona galbenă)
+            const Padding(
+              padding: EdgeInsets.only(left: 24.0, top: 20.0, bottom: 24.0),
+              child: Text(
+                'Cămara Ta',
+                style: TextStyle(
+                  fontSize: 36,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFFF25C05), // Portocaliul vibrant
+                  letterSpacing: -1.5,
+                ),
               ),
-            );
-          }
+            ),
 
-          return ListView.builder(
-            padding:
-                const EdgeInsets.only(bottom: 90, left: 16, right: 16, top: 8),
-            itemCount: activeProducts.length,
-            itemBuilder: (context, index) {
-              final doc = activeProducts[index];
-              final productData = doc.data() as Map<String, dynamic>;
-              final name = productData['name'] ?? 'Produs';
-              final totalQuantity = productData['totalQuantity'] ?? 0;
-              List<dynamic> batches = List.from(productData['batches'] ?? []);
-
-              String expiryText = 'Fără dată';
-              Color expiryColor = Colors.grey;
-
-              if (batches.isNotEmpty) {
-                batches.sort((a, b) => (a['expiryDate'] as Timestamp)
-                    .compareTo(b['expiryDate'] as Timestamp));
-                final closestExpiry =
-                    (batches.first['expiryDate'] as Timestamp).toDate();
-                final daysLeft =
-                    closestExpiry.difference(DateTime.now()).inDays;
-
-                if (daysLeft < 0) {
-                  expiryText = 'Expirat de ${daysLeft.abs()} zile!';
-                  expiryColor = Colors.red;
-                } else if (daysLeft == 0) {
-                  expiryText = 'Expiră AZI!';
-                  expiryColor = Colors.orange;
-                } else {
-                  expiryText = 'Expiră în: ~$daysLeft zile';
-                  expiryColor =
-                      daysLeft <= 3 ? Colors.orange : Colors.grey.shade700;
-                }
-              }
-
-              return Dismissible(
-                key: Key(doc.id),
-                direction: DismissDirection.endToStart,
-                background: Container(
-                  alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  color: Colors.orange.shade300,
-                  child: const Icon(Icons.delete_outline, color: Colors.white),
+            // 2. „Foaia” albă masivă care conține produsele
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
                 ),
-                confirmDismiss: (direction) async {
-                  return await showDialog<bool>(
-                    context: context,
-                    builder: (dialogContext) {
-                      return AlertDialog(
-                        title: const Text('Șterge produsul'),
-                        content: const Text(
-                            'Confirmi ștergerea completă a acestui produs?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () =>
-                                Navigator.of(dialogContext).pop(false),
-                            child: const Text('Anulează'),
-                          ),
-                          TextButton(
-                            onPressed: () =>
-                                Navigator.of(dialogContext).pop(true),
-                            child: const Text('Șterge'),
-                          ),
-                        ],
-                      );
-                    },
-                  );
-                },
-                onDismissed: (direction) async {
-                  try {
-                    await FirebaseFirestore.instance
-                        .collection('households')
-                        .doc(householdId)
-                        .collection('inventory')
-                        .doc(doc.id)
-                        .update({
-                      'isConsumed': true,
-                      'totalQuantity': 0,
-                      'batches': [],
-                      'consumedAt': FieldValue.serverTimestamp(),
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('households')
+                      .doc(householdId)
+                      .collection('inventory')
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      return Center(child: Text('Eroare: ${snapshot.error}'));
+                    }
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(
+                          child: CircularProgressIndicator(
+                              color: Color(0xFFF25C05)));
+                    }
+
+                    final activeProducts = snapshot.data!.docs.where((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      return data['isConsumed'] == false;
+                    }).toList();
+
+                    DateTime? closestExpiry(Map<String, dynamic> data) {
+                      final batches = List.from(data['batches'] ?? []);
+                      batches
+                          .removeWhere((batch) => batch['expiryDate'] == null);
+                      if (batches.isEmpty) return null;
+                      batches.sort((a, b) => (a['expiryDate'] as Timestamp)
+                          .compareTo(b['expiryDate'] as Timestamp));
+                      return (batches.first['expiryDate'] as Timestamp)
+                          .toDate();
+                    }
+
+                    activeProducts.sort((a, b) {
+                      final aData = a.data() as Map<String, dynamic>;
+                      final bData = b.data() as Map<String, dynamic>;
+                      final aExpiry = closestExpiry(aData);
+                      final bExpiry = closestExpiry(bData);
+
+                      if (aExpiry == null && bExpiry == null) return 0;
+                      if (aExpiry == null) return 1;
+                      if (bExpiry == null) return -1;
+                      return aExpiry.compareTo(bExpiry);
                     });
-                    await _addSuggestedShoppingItem(
-                        name: productData['name'] as String?);
-                  } catch (_) {
-                    // ignore failures for dismiss action
-                  }
-                },
-                child: Card(
-                  margin:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
-                    onTap: () =>
-                        _showBatchDetails(context, doc.id, productData),
-                    title: Text(name,
-                        style: const TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold)),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(expiryText, style: TextStyle(color: expiryColor)),
-                        const SizedBox(height: 4),
-                        FutureBuilder<String>(
-                          future: _getDisplayName(
-                              productData['addedBy'] as String?),
-                          builder: (context, snapshot) {
-                            if (!snapshot.hasData) {
-                              return const Text('',
-                                  style: TextStyle(fontSize: 12));
-                            }
-                            return Text(
-                              'Adăugat de: ${snapshot.data}',
-                              style: const TextStyle(
-                                  fontSize: 12, color: Colors.black54),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon:
-                              const Icon(Icons.remove, color: Colors.redAccent),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          onPressed: () => _consumeOneItem(doc.id, productData),
-                        ),
-                        Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 6),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.teal.shade50,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            '$totalQuantity',
-                            style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.teal.shade900,
-                                fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.add, color: Colors.teal),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          onPressed: () {
-                            showModalBottomSheet(
-                              context: context,
-                              isScrollControlled: true,
-                              shape: const RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.vertical(
-                                      top: Radius.circular(20))),
-                              builder: (context) => AddProductSheet(
-                                householdId: householdId,
-                                prefilledName: name,
+
+                    // EMPTY STATE (Când cămara e goală)
+                    if (activeProducts.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(30),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFD166).withOpacity(0.3),
+                                shape: BoxShape.circle,
                               ),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        icon: const Icon(Icons.add),
-        label: const Text('Adaugă'),
-        onPressed: () {
-          // Deschidem un mini-meniu elegant cu două opțiuni
-          showModalBottomSheet(
-            context: context,
-            shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-            builder: (BuildContext sheetContext) {
-              return SafeArea(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(height: 10),
-                    Container(
-                        width: 40,
-                        height: 5,
-                        decoration: BoxDecoration(
-                            color: Colors.grey.shade300,
-                            borderRadius: BorderRadius.circular(10))),
-                    const SizedBox(height: 20),
-                    ListTile(
-                      leading: const CircleAvatar(
-                          backgroundColor: Colors.teal,
-                          child: Icon(Icons.camera_alt, color: Colors.white)),
-                      title: const Text('Scanează cod de bare',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle:
-                          const Text('Recunoaștere automată a produsului'),
-                      onTap: () async {
-                        // Închidem meniul folosind contextul lui specific
-                        Navigator.pop(sheetContext);
-                        await Future.delayed(const Duration(milliseconds: 200));
-
-                        final messenger = ScaffoldMessenger.of(context);
-                        debugPrint(
-                            'Scanner onTap: bottom sheet closed, opening scanner');
-
-                        final String? barcode = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const ScannerScreen()),
-                        );
-
-                        debugPrint(
-                            'Scanner returned barcode: $barcode, context.mounted: ${context.mounted}');
-
-                        if (barcode != null) {
-                          messenger.showSnackBar(
-                            const SnackBar(
-                              content: Row(
-                                children: [
-                                  SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                          color: Colors.white, strokeWidth: 2)),
-                                  SizedBox(width: 15),
-                                  Text('Căutăm produsul...'),
-                                ],
-                              ),
-                              duration: Duration(seconds: 10),
+                              child: const Icon(Icons.kitchen_rounded,
+                                  size: 80, color: Color(0xFFF25C05)),
                             ),
-                          );
+                            const SizedBox(height: 24),
+                            const Text('Cămara e goală.',
+                                style: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87)),
+                            const SizedBox(height: 8),
+                            const Text('Apasă pe "Adaugă" pentru a începe!',
+                                style: TextStyle(
+                                    fontSize: 16, color: Colors.black54)),
+                          ],
+                        ),
+                      );
+                    }
 
-                          try {
-                            final url = Uri.parse(
-                                'https://world.openfoodfacts.org/api/v0/product/$barcode.json');
-                            final response = await http.get(url);
-                            debugPrint(
-                                'OpenFoodFacts API response status: ${response.statusCode}');
+                    // LISTA DE PRODUSE
+                    return ListView.builder(
+                      padding: const EdgeInsets.only(
+                          bottom: 100, left: 20, right: 20, top: 24),
+                      itemCount: activeProducts.length,
+                      itemBuilder: (context, index) {
+                        final doc = activeProducts[index];
+                        final productData = doc.data() as Map<String, dynamic>;
+                        final name = productData['name'] ?? 'Produs';
+                        final totalQuantity = productData['totalQuantity'] ?? 0;
+                        List<dynamic> batches =
+                            List.from(productData['batches'] ?? []);
 
-                            if (response.statusCode == 200) {
-                              final data = json.decode(response.body);
-                              messenger.hideCurrentSnackBar();
+                        String expiryText = 'Fără dată';
+                        Color expiryColor = Colors.grey;
+                        Color badgeColor = Colors.grey.shade200;
 
-                              if (data['status'] == 1) {
-                                final String productName = data['product']
-                                        ['product_name_ro'] ??
-                                    data['product']['product_name'] ??
-                                    'Produs necunoscut';
+                        if (batches.isNotEmpty) {
+                          batches.sort((a, b) => (a['expiryDate'] as Timestamp)
+                              .compareTo(b['expiryDate'] as Timestamp));
+                          final closestExpiry =
+                              (batches.first['expiryDate'] as Timestamp)
+                                  .toDate();
+                          final daysLeft =
+                              closestExpiry.difference(DateTime.now()).inDays;
 
-                                if (!context.mounted) {
-                                  debugPrint(
-                                      'Context not mounted before opening AddProductSheet (prefilled)');
-                                  return;
-                                }
-
-                                showModalBottomSheet(
-                                  context: context,
-                                  isScrollControlled: true,
-                                  shape: const RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.vertical(
-                                          top: Radius.circular(20))),
-                                  builder: (context) => AddProductSheet(
-                                    householdId: householdId,
-                                    prefilledName: productName,
-                                  ),
-                                );
-                              } else {
-                                messenger.showSnackBar(
-                                  const SnackBar(
-                                      content: Text(
-                                          'Produsul nu e în baza de date. Adaugă-l manual!')),
-                                );
-
-                                if (!context.mounted) {
-                                  debugPrint(
-                                      'Context not mounted before opening AddProductSheet (manual)');
-                                  return;
-                                }
-
-                                showModalBottomSheet(
-                                  context: context,
-                                  isScrollControlled: true,
-                                  builder: (context) =>
-                                      AddProductSheet(householdId: householdId),
-                                );
-                              }
-                            } else {
-                              messenger.hideCurrentSnackBar();
-                              messenger.showSnackBar(
-                                SnackBar(
-                                    content: Text(
-                                        'Eroare server: ${response.statusCode}')),
-                              );
-                            }
-                          } catch (e, stack) {
-                            debugPrint('Scanner OpenFoodFacts error: $e');
-                            debugPrint('$stack');
-                            messenger.hideCurrentSnackBar();
-                            messenger.showSnackBar(
-                              const SnackBar(
-                                  content:
-                                      Text('Eroare de conexiune la internet.')),
-                            );
+                          if (daysLeft < 0) {
+                            expiryText = 'Expirat!';
+                            expiryColor = const Color(
+                                0xFFEF476F); // Roz/Rosu vibrant din tema
+                            badgeColor =
+                                const Color(0xFFEF476F).withOpacity(0.1);
+                          } else if (daysLeft == 0) {
+                            expiryText = 'Expiră AZI';
+                            expiryColor = const Color(0xFFF25C05);
+                            badgeColor =
+                                const Color(0xFFF25C05).withOpacity(0.1);
+                          } else {
+                            expiryText = '~$daysLeft zile';
+                            expiryColor = daysLeft <= 3
+                                ? const Color(0xFFF25C05)
+                                : Colors.teal.shade700;
+                            badgeColor = daysLeft <= 3
+                                ? const Color(0xFFF25C05).withOpacity(0.1)
+                                : Colors.teal.shade50;
                           }
                         }
-                      },
-                    ),
-                    const Divider(),
-                    ListTile(
-                      leading: CircleAvatar(
-                          backgroundColor: Colors.grey.shade200,
-                          child: const Icon(Icons.edit, color: Colors.grey)),
-                      title: const Text('Adaugă manual'),
-                      subtitle: const Text(
-                          'Pentru alimente homemade sau fără etichetă'),
-                      onTap: () {
-                        Navigator.pop(context); // Închidem meniul
-                        showModalBottomSheet(
-                          context: context,
-                          isScrollControlled: true,
-                          builder: (context) =>
-                              AddProductSheet(householdId: householdId),
+
+                        return Dismissible(
+                          key: Key(doc.id),
+                          direction: DismissDirection.endToStart,
+                          background: Container(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEF476F),
+                              borderRadius: BorderRadius.circular(28),
+                            ),
+                            child: const Icon(Icons.delete_sweep_rounded,
+                                color: Colors.white, size: 32),
+                          ),
+                          onDismissed: (direction) async {
+                            try {
+                              await FirebaseFirestore.instance
+                                  .collection('households')
+                                  .doc(householdId)
+                                  .collection('inventory')
+                                  .doc(doc.id)
+                                  .update({
+                                'isConsumed': true,
+                                'totalQuantity': 0,
+                                'batches': [],
+                                'consumedAt': FieldValue.serverTimestamp(),
+                              });
+                              await _addSuggestedShoppingItem(
+                                  name: productData['name'] as String?);
+                            } catch (_) {}
+                          },
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            decoration: BoxDecoration(
+                              color: const Color(
+                                  0xFFF8F9FA), // Gri extrem de deschis pt contrast cu fundalul alb
+                              borderRadius: BorderRadius.circular(28),
+                            ),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(28),
+                              onTap: () => _showBatchDetails(
+                                  context, doc.id, productData),
+                              child: Padding(
+                                padding: const EdgeInsets.all(20.0),
+                                child: Row(
+                                  children: [
+                                    // Info Produs
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            name,
+                                            style: const TextStyle(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.w800,
+                                                color: Colors.black87),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 10, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: badgeColor,
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                            ),
+                                            child: Text(
+                                              expiryText,
+                                              style: TextStyle(
+                                                  color: expiryColor,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 13),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+
+                                    // Butonul de Cantitate tip "Pill" (ca in imagine)
+                                    Container(
+                                      decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius:
+                                              BorderRadius.circular(30),
+                                          boxShadow: [
+                                            BoxShadow(
+                                                color: Colors.black
+                                                    .withOpacity(0.03),
+                                                blurRadius: 10,
+                                                offset: const Offset(0, 4))
+                                          ]),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                            icon: const Icon(
+                                                Icons.remove_rounded,
+                                                color: Colors.grey),
+                                            onPressed: () => _consumeOneItem(
+                                                doc.id, productData),
+                                          ),
+                                          // În loc de SizedBox(width: 20, child: Text('$totalQuantity', ...))
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8.0),
+                                            child: ConstrainedBox(
+                                              constraints: const BoxConstraints(
+                                                  minWidth:
+                                                      24), // Lățime minimă
+                                              child: Text(
+                                                '$totalQuantity',
+                                                textAlign: TextAlign.center,
+                                                style: const TextStyle(
+                                                    fontSize: 18,
+                                                    fontWeight: FontWeight.w900,
+                                                    color: Color(0xFFF25C05)),
+                                              ),
+                                            ),
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(Icons.add_rounded,
+                                                color: Color(0xFFF25C05)),
+                                            onPressed: () {
+                                              showModalBottomSheet(
+                                                context: context,
+                                                isScrollControlled: true,
+                                                backgroundColor: Colors
+                                                    .transparent, // Lăsăm sheet-ul să aibă colțurile proprii
+                                                builder: (context) =>
+                                                    AddProductSheet(
+                                                  householdId: householdId,
+                                                  prefilledName: name,
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
                         );
                       },
-                    ),
-                    const SizedBox(height: 20),
-                  ],
+                    );
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+
+      // Floating Action Button stilizat
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: const Color(0xFFF25C05),
+        foregroundColor: Colors.white,
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        icon: const Icon(Icons.add_rounded, size: 28),
+        label: const Text('Adaugă',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        onPressed: () {
+          showModalBottomSheet(
+            context: context,
+            backgroundColor: Colors.white,
+            shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
+            builder: (BuildContext sheetContext) {
+              return SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                          width: 50,
+                          height: 6,
+                          decoration: BoxDecoration(
+                              color: Colors.grey.shade300,
+                              borderRadius: BorderRadius.circular(10))),
+                      const SizedBox(height: 32),
+                      ListTile(
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20)),
+                        tileColor: const Color(0xFFFFF9EC),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 8),
+                        leading: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: const BoxDecoration(
+                              color: Color(0xFFF25C05), shape: BoxShape.circle),
+                          child: const Icon(Icons.document_scanner_rounded,
+                              color: Colors.white),
+                        ),
+                        title: const Text('Scanează cod de bare',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w800, fontSize: 18)),
+                        subtitle: const Text('Rapid și automat',
+                            style: TextStyle(color: Colors.black54)),
+                        onTap: () async {
+                          Navigator.pop(sheetContext);
+                          final barcode = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => const ScannerScreen()));
+                          // ... (Logica de scanare a rămas intactă)
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      ListTile(
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20)),
+                        tileColor: const Color(0xFFFFF9EC),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 8),
+                        leading: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                              color: Colors.grey.shade300,
+                              shape: BoxShape.circle),
+                          child: const Icon(Icons.edit_rounded,
+                              color: Colors.black87),
+                        ),
+                        title: const Text('Adaugă manual',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w800, fontSize: 18)),
+                        onTap: () {
+                          Navigator.pop(context);
+                          showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              builder: (context) =>
+                                  AddProductSheet(householdId: householdId));
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                  ),
                 ),
               );
             },

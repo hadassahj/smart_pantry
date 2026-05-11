@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart'; // Avem nevoie pentru formatarea datei
 
 class AddProductSheet extends StatefulWidget {
@@ -64,18 +63,8 @@ class _AddProductSheetState extends State<AddProductSheet> {
       final newBatch = {
         'quantity': _quantity,
         'expiryDate': Timestamp.fromDate(_selectedExpiryDate),
-        'addedAt': Timestamp.now(),
+        'addedAt': Timestamp.now(), // <--- AICI AM FĂCUT MODIFICAREA
         'source': 'manual'
-      };
-      final addedByUid = FirebaseAuth.instance.currentUser?.uid;
-
-      final newProduct = {
-        'name': productName,
-        'totalQuantity': _quantity,
-        'isConsumed': false,
-        'batches': [newBatch],
-        'createdAt': FieldValue.serverTimestamp(),
-        if (addedByUid != null) 'addedBy': addedByUid,
       };
 
       if (querySnapshot.docs.isNotEmpty) {
@@ -95,7 +84,13 @@ class _AddProductSheetState extends State<AddProductSheet> {
         });
       } else {
         // PRODUS NOU
-        await inventoryRef.add(newProduct);
+        await inventoryRef.add({
+          'name': productName,
+          'totalQuantity': _quantity,
+          'isConsumed': false,
+          'batches': [newBatch], // Array cu un singur element momentan
+          'createdAt': FieldValue.serverTimestamp(),
+        });
       }
 
       if (mounted) {
