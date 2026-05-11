@@ -1,7 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart'; // Folosim intl pentru a formata data frumos
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart'; // Folosim intl pentru a forma data frumos
 import 'add_product_sheet.dart';
 import 'scanner_screen.dart'; //
 import 'package:http/http.dart' as http;
@@ -45,6 +46,32 @@ class PantryTab extends StatelessWidget {
       'isConsumed': isNowGhost,
       'consumedAt': isNowGhost ? FieldValue.serverTimestamp() : null,
     });
+
+    if (isNowGhost) {
+      await _addSuggestedShoppingItem(name: productData['name'] as String?);
+    }
+  }
+
+  Future<void> _addSuggestedShoppingItem({String? name}) async {
+    final suggestedName =
+        (name?.trim().isEmpty ?? true) ? 'Produs' : name!.trim();
+    try {
+      await FirebaseFirestore.instance
+          .collection('households')
+          .doc(householdId)
+          .collection('shopping_list')
+          .add({
+        'name': suggestedName,
+        'quantity': '1',
+        'estimatedPrice': 0.0,
+        'isBought': false,
+        'isSuggested': true,
+        'addedBy': FirebaseAuth.instance.currentUser?.uid ?? '',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    } catch (_) {
+      // Silently ignore suggestion write failures for now.
+    }
   }
 
   // --- NOU: Funcția care arată detaliile loturilor ---
@@ -218,16 +245,22 @@ class PantryTab extends StatelessWidget {
                           ),
                           TextButton(
                             onPressed: () async {
-                              await FirebaseFirestore.instance
-                                  .collection('households')
-                                  .doc(householdId)
-                                  .collection('inventory')
-                                  .doc(docId)
-                                  .update({
-                                'isConsumed': true,
-                                'totalQuantity': 0,
-                                'batches': [],
-                              });
+                              try {
+                                await FirebaseFirestore.instance
+                                    .collection('households')
+                                    .doc(householdId)
+                                    .collection('inventory')
+                                    .doc(docId)
+                                    .update({
+                                  'isConsumed': true,
+                                  'totalQuantity': 0,
+                                  'batches': [],
+                                });
+                                await _addSuggestedShoppingItem(
+                                    name: currentName);
+                              } catch (_) {
+                                // ignore failures in delete sheet action
+                              }
                               Navigator.of(dialogContext).pop();
                               Navigator.of(sheetContext).pop();
                             },
@@ -247,6 +280,13 @@ class PantryTab extends StatelessWidget {
         );
       },
     );
+  }
+
+  Future<String> _getDisplayName(String? uid) async {
+    if (uid == null || uid.isEmpty) return 'Utilizator necunoscut';
+    final doc =
+        await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    return doc.data()?['displayName'] as String? ?? 'Utilizator necunoscut';
   }
 
   @override
@@ -373,18 +413,24 @@ class PantryTab extends StatelessWidget {
                     },
                   );
                 },
-                onDismissed: (direction) {
-                  FirebaseFirestore.instance
-                      .collection('households')
-                      .doc(householdId)
-                      .collection('inventory')
-                      .doc(doc.id)
-                      .update({
-                    'isConsumed': true,
-                    'totalQuantity': 0,
-                    'batches': [],
-                    'consumedAt': FieldValue.serverTimestamp(),
-                  });
+                onDismissed: (direction) async {
+                  try {
+                    await FirebaseFirestore.instance
+                        .collection('households')
+                        .doc(householdId)
+                        .collection('inventory')
+                        .doc(doc.id)
+                        .update({
+                      'isConsumed': true,
+                      'totalQuantity': 0,
+                      'batches': [],
+                      'consumedAt': FieldValue.serverTimestamp(),
+                    });
+                    await _addSuggestedShoppingItem(
+                        name: productData['name'] as String?);
+                  } catch (_) {
+                    // ignore failures for dismiss action
+                  }
                 },
                 child: Card(
                   margin:
@@ -397,8 +443,28 @@ class PantryTab extends StatelessWidget {
                     title: Text(name,
                         style: const TextStyle(
                             fontSize: 18, fontWeight: FontWeight.bold)),
-                    subtitle:
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(expiryText, style: TextStyle(color: expiryColor)),
+                        const SizedBox(height: 4),
+                        FutureBuilder<String>(
+                          future: _getDisplayName(
+                              productData['addedBy'] as String?),
+                          builder: (context, snapshot) {
+                            if (!snapshot.hasData) {
+                              return const Text('',
+                                  style: TextStyle(fontSize: 12));
+                            }
+                            return Text(
+                              'Adăugat de: ${snapshot.data}',
+                              style: const TextStyle(
+                                  fontSize: 12, color: Colors.black54),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [

@@ -1,0 +1,272 @@
+600:                               ), | paren=9 bracket=2 brace=4
+601:                             ], | paren=9 bracket=1 brace=4
+602:                           ); | paren=8 bracket=1 brace=4
+603:                         }, | paren=8 bracket=1 brace=3
+604:                       ), | paren=7 bracket=1 brace=3
+605:                     ), | paren=6 bracket=1 brace=3
+606:                   ), | paren=5 bracket=1 brace=3
+607:                   const SizedBox(height: 24), | paren=5 bracket=1 brace=3
+608:                   const Text( | paren=6 bracket=1 brace=3
+609:                     'Lista de cumpărături partajată', | paren=6 bracket=1 brace=3
+610:                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold), | paren=6 bracket=1 brace=3
+611:                   ), | paren=5 bracket=1 brace=3
+612:                   const SizedBox(height: 12), | paren=5 bracket=1 brace=3
+613:                   Expanded( | paren=6 bracket=1 brace=3
+614:                     child: Container( | paren=7 bracket=1 brace=3
+615:                       decoration: BoxDecoration( | paren=8 bracket=1 brace=3
+616:                         color: Colors.white, | paren=8 bracket=1 brace=3
+617:                         borderRadius: BorderRadius.circular(24), | paren=8 bracket=1 brace=3
+618:                         boxShadow: [ | paren=8 bracket=2 brace=3
+619:                           BoxShadow( | paren=9 bracket=2 brace=3
+620:                             color: Colors.black.withOpacity(0.04), | paren=9 bracket=2 brace=3
+621:                             blurRadius: 20, | paren=9 bracket=2 brace=3
+622:                             offset: const Offset(0, 8), | paren=9 bracket=2 brace=3
+623:                           ), | paren=8 bracket=2 brace=3
+624:                         ], | paren=8 bracket=1 brace=3
+625:                       ), | paren=7 bracket=1 brace=3
+626:                       padding: const EdgeInsets.all(16), | paren=7 bracket=1 brace=3
+627:                       child: StreamBuilder<QuerySnapshot>( | paren=8 bracket=1 brace=3
+628:                       stream: FirebaseFirestore.instance | paren=8 bracket=1 brace=3
+629:                           .collection('households') | paren=8 bracket=1 brace=3
+630:                           .doc(widget.householdId) | paren=8 bracket=1 brace=3
+631:                           .collection('shopping_list') | paren=8 bracket=1 brace=3
+632:                           .orderBy('createdAt', descending: false) | paren=8 bracket=1 brace=3
+633:                           .snapshots(), | paren=8 bracket=1 brace=3
+634:                       builder: (context, listSnapshot) { | paren=8 bracket=1 brace=4
+635:                         if (listSnapshot.connectionState == | paren=9 bracket=1 brace=4
+636:                             ConnectionState.waiting) { | paren=8 bracket=1 brace=5
+637:                           return const Center( | paren=9 bracket=1 brace=5
+638:                               child: CircularProgressIndicator()); | paren=8 bracket=1 brace=5
+639:                         } | paren=8 bracket=1 brace=4
+640:  | paren=8 bracket=1 brace=4
+641:                         if (listSnapshot.hasError) { | paren=8 bracket=1 brace=5
+642:                           return Center( | paren=9 bracket=1 brace=5
+643:                               child: Text('Eroare: ${listSnapshot.error}')); | paren=8 bracket=1 brace=5
+644:                         } | paren=8 bracket=1 brace=4
+645:  | paren=8 bracket=1 brace=4
+646:                         final items = listSnapshot.data?.docs ?? []; | paren=8 bracket=1 brace=4
+647:                         final officialItems = <QueryDocumentSnapshot>[]; | paren=8 bracket=1 brace=4
+648:                         final suggestedItems = <QueryDocumentSnapshot>[]; | paren=8 bracket=1 brace=4
+649:  | paren=8 bracket=1 brace=4
+650:                         for (final item in items) { | paren=8 bracket=1 brace=5
+651:                           final data = item.data() as Map<String, dynamic>; | paren=8 bracket=1 brace=5
+652:                           if (data['isSuggested'] == true) { | paren=8 bracket=1 brace=6
+653:                             suggestedItems.add(item); | paren=8 bracket=1 brace=6
+654:                           } else { | paren=8 bracket=1 brace=6
+655:                             officialItems.add(item); | paren=8 bracket=1 brace=6
+656:                           } | paren=8 bracket=1 brace=5
+657:                         } | paren=8 bracket=1 brace=4
+658:  | paren=8 bracket=1 brace=4
+659:                         if (officialItems.isEmpty && suggestedItems.isEmpty) { | paren=8 bracket=1 brace=5
+660:                           return Center( | paren=9 bracket=1 brace=5
+661:                             child: Text( | paren=10 bracket=1 brace=5
+662:                               'Lista de cumpărături este goală. Apasă + pentru a adăuga.', | paren=10 bracket=1 brace=5
+663:                               style: TextStyle( | paren=11 bracket=1 brace=5
+664:                                 color: Colors.grey.shade600, | paren=11 bracket=1 brace=5
+665:                                 fontSize: 16, | paren=11 bracket=1 brace=5
+666:                               ), | paren=10 bracket=1 brace=5
+667:                               textAlign: TextAlign.center, | paren=10 bracket=1 brace=5
+668:                             ), | paren=9 bracket=1 brace=5
+669:                           ); | paren=8 bracket=1 brace=5
+670:                         } | paren=8 bracket=1 brace=4
+671:  | paren=8 bracket=1 brace=4
+672:                         return ListView( | paren=9 bracket=1 brace=4
+673:                           padding: const EdgeInsets.only(bottom: 16), | paren=9 bracket=1 brace=4
+674:                           children: [ | paren=9 bracket=2 brace=4
+675:                             if (officialItems.isEmpty) ...[ | paren=9 bracket=3 brace=4
+676:                               Padding( | paren=10 bracket=3 brace=4
+677:                                 padding: | paren=10 bracket=3 brace=4
+678:                                     const EdgeInsets.symmetric(vertical: 12), | paren=10 bracket=3 brace=4
+679:                                 child: Text( | paren=11 bracket=3 brace=4
+680:                                   'Nicio intrare oficială încă.', | paren=11 bracket=3 brace=4
+681:                                   style: TextStyle( | paren=12 bracket=3 brace=4
+682:                                       color: Colors.grey.shade600, | paren=12 bracket=3 brace=4
+683:                                       fontSize: 16), | paren=11 bracket=3 brace=4
+684:                                 ), | paren=10 bracket=3 brace=4
+685:                               ) | paren=9 bracket=3 brace=4
+686:                             ], | paren=9 bracket=2 brace=4
+687:                             ...officialItems.map((doc) { | paren=10 bracket=2 brace=5
+688:                               final data = doc.data() as Map<String, dynamic>; | paren=10 bracket=2 brace=5
+689:                               final name = data['name'] as String? ?? 'Produs'; | paren=10 bracket=2 brace=5
+690:                               final quantity = | paren=10 bracket=2 brace=5
+691:                                   data['quantity']?.toString() ?? '1'; | paren=10 bracket=2 brace=5
+692:                               final price = (data['estimatedPrice'] != null) | paren=10 bracket=2 brace=5
+693:                                   ? (data['estimatedPrice'] as num).toDouble() | paren=10 bracket=2 brace=5
+694:                                   : 0.0; | paren=10 bracket=2 brace=5
+695:                               final isBought = | paren=10 bracket=2 brace=5
+696:                                   data['isBought'] as bool? ?? false; | paren=10 bracket=2 brace=5
+697:  | paren=10 bracket=2 brace=5
+698:                               return Card( | paren=11 bracket=2 brace=5
+699:                                 color: Colors.teal.shade50, | paren=11 bracket=2 brace=5
+700:                                 margin: const EdgeInsets.symmetric( | paren=12 bracket=2 brace=5
+701:                                     vertical: 6, horizontal: 0), | paren=11 bracket=2 brace=5
+702:                                 shape: RoundedRectangleBorder( | paren=12 bracket=2 brace=5
+703:                                   borderRadius: BorderRadius.circular(20), | paren=12 bracket=2 brace=5
+704:                                 ), | paren=11 bracket=2 brace=5
+705:                                 child: CheckboxListTile( | paren=12 bracket=2 brace=5
+706:                                   contentPadding: const EdgeInsets.symmetric( | paren=13 bracket=2 brace=5
+707:                                       horizontal: 20, vertical: 16), | paren=12 bracket=2 brace=5
+708:                                   value: isBought, | paren=12 bracket=2 brace=5
+709:                                   onChanged: (value) { | paren=12 bracket=2 brace=6
+710:                                     if (value != null) { | paren=12 bracket=2 brace=7
+711:                                       _toggleItemBought(doc.id, value); | paren=12 bracket=2 brace=7
+712:                                     } | paren=12 bracket=2 brace=6
+713:                                   }, | paren=12 bracket=2 brace=5
+714:                                   title: Text(name, | paren=13 bracket=2 brace=5
+715:                                       style: TextStyle( | paren=14 bracket=2 brace=5
+716:                                         decoration: isBought | paren=14 bracket=2 brace=5
+717:                                             ? TextDecoration.lineThrough | paren=14 bracket=2 brace=5
+718:                                             : null, | paren=14 bracket=2 brace=5
+719:                                       )), | paren=12 bracket=2 brace=5
+720:                                   subtitle: Column( | paren=13 bracket=2 brace=5
+721:                                     crossAxisAlignment: | paren=13 bracket=2 brace=5
+722:                                         CrossAxisAlignment.start, | paren=13 bracket=2 brace=5
+723:                                     children: [ | paren=13 bracket=3 brace=5
+724:                                       Text( | paren=14 bracket=3 brace=5
+725:                                           'Cantitate: $quantity • Est. Preț: ${price.toStringAsFixed(2)} RON'), | paren=13 bracket=3 brace=5
+726:                                       const SizedBox(height: 4), | paren=13 bracket=3 brace=5
+727:                                       _buildAddedByLine( | paren=14 bracket=3 brace=5
+728:                                           data['addedBy'] as String?), | paren=13 bracket=3 brace=5
+729:                                     ], | paren=13 bracket=2 brace=5
+730:                                   ), | paren=12 bracket=2 brace=5
+731:                                   secondary: IconButton( | paren=13 bracket=2 brace=5
+732:                                     icon: const Icon(Icons.delete_outline), | paren=13 bracket=2 brace=5
+733:                                     onPressed: () => | paren=13 bracket=2 brace=5
+734:                                         _deleteShoppingItem(doc.id), | paren=13 bracket=2 brace=5
+735:                                   ), | paren=12 bracket=2 brace=5
+736:                                 ), | paren=11 bracket=2 brace=5
+737:                               ); | paren=10 bracket=2 brace=5
+738:                             }).toList(), | paren=9 bracket=2 brace=4
+739:                             if (suggestedItems.isNotEmpty) ...[ | paren=9 bracket=3 brace=4
+740:                               const SizedBox(height: 16), | paren=9 bracket=3 brace=4
+741:                               const Divider(), | paren=9 bracket=3 brace=4
+742:                               const SizedBox(height: 12), | paren=9 bracket=3 brace=4
+743:                               Text( | paren=10 bracket=3 brace=4
+744:                                 'Sugestii din cămară', | paren=10 bracket=3 brace=4
+745:                                 style: TextStyle( | paren=11 bracket=3 brace=4
+746:                                   color: Colors.grey.shade700, | paren=11 bracket=3 brace=4
+747:                                   fontWeight: FontWeight.bold, | paren=11 bracket=3 brace=4
+748:                                 ), | paren=10 bracket=3 brace=4
+749:                               ), | paren=9 bracket=3 brace=4
+750:                               const SizedBox(height: 12), | paren=9 bracket=3 brace=4
+751:                               ...suggestedItems.map((doc) { | paren=10 bracket=3 brace=5
+752:                                 final data = doc.data() as Map<String, dynamic>; | paren=10 bracket=3 brace=5
+753:                                 final name = | paren=10 bracket=3 brace=5
+754:                                     data['name'] as String? ?? 'Produs'; | paren=10 bracket=3 brace=5
+755:                                 final rawQuantity = data['quantity']; | paren=10 bracket=3 brace=5
+756:                                 final currentQuantity = | paren=10 bracket=3 brace=5
+757:                                     _suggestedQuantities[doc.id] ?? | paren=10 bracket=3 brace=5
+758:                                         (rawQuantity is int | paren=11 bracket=3 brace=5
+759:                                             ? rawQuantity | paren=11 bracket=3 brace=5
+760:                                             : int.tryParse( | paren=12 bracket=3 brace=5
+761:                                                     rawQuantity?.toString() ?? | paren=12 bracket=3 brace=5
+762:                                                         '1') ?? | paren=11 bracket=3 brace=5
+763:                                                 1); | paren=10 bracket=3 brace=5
+764:                                 _suggestedQuantities[doc.id] = currentQuantity; | paren=10 bracket=3 brace=5
+765:  | paren=10 bracket=3 brace=5
+766:                                 return Container( | paren=11 bracket=3 brace=5
+767:                                   margin: const EdgeInsets.symmetric( | paren=12 bracket=3 brace=5
+768:                                       vertical: 6, horizontal: 0), | paren=11 bracket=3 brace=5
+769:                                   decoration: BoxDecoration( | paren=12 bracket=3 brace=5
+770:                                     color: Colors.amber.shade50, | paren=12 bracket=3 brace=5
+771:                                     borderRadius: BorderRadius.circular(20), | paren=12 bracket=3 brace=5
+772:                                     border: Border.all( | paren=13 bracket=3 brace=5
+773:                                         color: Colors.amber.shade200), | paren=12 bracket=3 brace=5
+774:                                   ), | paren=11 bracket=3 brace=5
+775:                                   child: ListTile( | paren=12 bracket=3 brace=5
+776:                                     contentPadding: const EdgeInsets.symmetric( | paren=13 bracket=3 brace=5
+777:                                         horizontal: 18, vertical: 16), | paren=12 bracket=3 brace=5
+778:                                     title: Text(name, | paren=13 bracket=3 brace=5
+779:                                         style: const TextStyle( | paren=14 bracket=3 brace=5
+780:                                             fontWeight: FontWeight.w600)), | paren=12 bracket=3 brace=5
+781:                                     subtitle: Column( | paren=13 bracket=3 brace=5
+782:                                       crossAxisAlignment: | paren=13 bracket=3 brace=5
+783:                                           CrossAxisAlignment.start, | paren=13 bracket=3 brace=5
+784:                                       children: [ | paren=13 bracket=4 brace=5
+785:                                         Row( | paren=14 bracket=4 brace=5
+786:                                           children: [ | paren=14 bracket=5 brace=5
+787:                                             IconButton( | paren=15 bracket=5 brace=5
+788:                                               icon: const Icon(Icons.remove, | paren=16 bracket=5 brace=5
+789:                                                   color: Colors.redAccent), | paren=15 bracket=5 brace=5
+790:                                               onPressed: () { | paren=15 bracket=5 brace=6
+791:                                                 setState(() { | paren=16 bracket=5 brace=7
+792:                                                   final newValue = | paren=16 bracket=5 brace=7
+793:                                                       (_suggestedQuantities[ | paren=17 bracket=6 brace=7
+794:                                                                   doc.id] ?? | paren=17 bracket=5 brace=7
+795:                                                               1) - | paren=16 bracket=5 brace=7
+796:                                                           1; | paren=16 bracket=5 brace=7
+797:                                                   _suggestedQuantities[doc.id] = | paren=16 bracket=5 brace=7
+798:                                                       newValue < 1 | paren=16 bracket=5 brace=7
+799:                                                           ? 1 | paren=16 bracket=5 brace=7
+800:                                                           : newValue; | paren=16 bracket=5 brace=7
+801:                                                 }); | paren=15 bracket=5 brace=6
+802:                                               }, | paren=15 bracket=5 brace=5
+803:                                             ), | paren=14 bracket=5 brace=5
+804:                                             Text( | paren=15 bracket=5 brace=5
+805:                                               '${_suggestedQuantities[doc.id] ?? 1}', | paren=15 bracket=5 brace=5
+806:                                               style: const TextStyle( | paren=16 bracket=5 brace=5
+807:                                                   fontWeight: FontWeight.bold, | paren=16 bracket=5 brace=5
+808:                                                   fontSize: 16), | paren=15 bracket=5 brace=5
+809:                                             ), | paren=14 bracket=5 brace=5
+810:                                             IconButton( | paren=15 bracket=5 brace=5
+811:                                               icon: const Icon(Icons.add, | paren=16 bracket=5 brace=5
+812:                                                   color: Colors.teal), | paren=15 bracket=5 brace=5
+813:                                               onPressed: () { | paren=15 bracket=5 brace=6
+814:                                                 setState(() { | paren=16 bracket=5 brace=7
+815:                                                   _suggestedQuantities[doc.id] = | paren=16 bracket=5 brace=7
+816:                                                       (_suggestedQuantities[ | paren=17 bracket=6 brace=7
+817:                                                                   doc.id] ?? | paren=17 bracket=5 brace=7
+818:                                                               1) + | paren=16 bracket=5 brace=7
+819:                                                           1; | paren=16 bracket=5 brace=7
+820:                                                 }); | paren=15 bracket=5 brace=6
+821:                                               }, | paren=15 bracket=5 brace=5
+822:                                             ), | paren=14 bracket=5 brace=5
+823:                                           ], | paren=14 bracket=4 brace=5
+824:                                         ), | paren=13 bracket=4 brace=5
+825:                                         const SizedBox(height: 4), | paren=13 bracket=4 brace=5
+826:                                         _buildAddedByLine( | paren=14 bracket=4 brace=5
+827:                                             data['addedBy'] as String?), | paren=13 bracket=4 brace=5
+828:                                       ], | paren=13 bracket=3 brace=5
+829:                                     ), | paren=12 bracket=3 brace=5
+830:                                     trailing: Row( | paren=13 bracket=3 brace=5
+831:                                       mainAxisSize: MainAxisSize.min, | paren=13 bracket=3 brace=5
+832:                                       children: [ | paren=13 bracket=4 brace=5
+833:                                         IconButton( | paren=14 bracket=4 brace=5
+834:                                           icon: const Icon(Icons.add_task, | paren=15 bracket=4 brace=5
+835:                                               color: Colors.teal), | paren=14 bracket=4 brace=5
+836:                                           onPressed: () { | paren=14 bracket=4 brace=6
+837:                                             final promotedQuantity = | paren=14 bracket=4 brace=6
+838:                                                 _suggestedQuantities[doc.id] ?? | paren=14 bracket=4 brace=6
+839:                                                     1; | paren=14 bracket=4 brace=6
+840:                                             _promoteSuggestedItem( | paren=15 bracket=4 brace=6
+841:                                                 doc.id, promotedQuantity); | paren=14 bracket=4 brace=6
+842:                                           }, | paren=14 bracket=4 brace=5
+843:                                         ), | paren=13 bracket=4 brace=5
+844:                                         IconButton( | paren=14 bracket=4 brace=5
+845:                                           icon: const Icon(Icons.close, | paren=15 bracket=4 brace=5
+846:                                               color: Colors.redAccent), | paren=14 bracket=4 brace=5
+847:                                           onPressed: () => | paren=14 bracket=4 brace=5
+848:                                               _deleteShoppingItem(doc.id), | paren=14 bracket=4 brace=5
+849:                                         ), | paren=13 bracket=4 brace=5
+850:                                       ], | paren=13 bracket=3 brace=5
+851:                                     ), | paren=12 bracket=3 brace=5
+852:                                   ), | paren=11 bracket=3 brace=5
+853:                                 ); | paren=10 bracket=3 brace=5
+854:                               }).toList(), | paren=9 bracket=3 brace=4
+855:                             ], | paren=9 bracket=2 brace=4
+856:                           ], | paren=9 bracket=1 brace=4
+857:                         ); | paren=8 bracket=1 brace=4
+858:                       }, | paren=8 bracket=1 brace=3
+859:                     ), | paren=7 bracket=1 brace=3
+860:                   ), | paren=6 bracket=1 brace=3
+861:                 ], | paren=6 bracket=0 brace=3
+862:               ), | paren=5 bracket=0 brace=3
+863:             ); | paren=4 bracket=0 brace=3
+864:           }, | paren=4 bracket=0 brace=2
+865:         ), | paren=3 bracket=0 brace=2
+866:       ), | paren=2 bracket=0 brace=2
+867:       floatingActionButton: FloatingActionButton( | paren=3 bracket=0 brace=2
+868:         onPressed: _showAddShoppingItemDialog, | paren=3 bracket=0 brace=2
+869:         child: const Icon(Icons.add), | paren=3 bracket=0 brace=2
+870:       ), | paren=2 bracket=0 brace=2
+871:     ); | paren=1 bracket=0 brace=2

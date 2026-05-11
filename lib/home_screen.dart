@@ -31,10 +31,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser != null) {
-      await FirebaseFirestore.instance
+      final db = FirebaseFirestore.instance;
+      await db
           .collection('users')
           .doc(currentUser.uid)
           .set({'householdId': newHouseholdId}, SetOptions(merge: true));
+      await db.collection('households').doc(newHouseholdId).set({
+        'members': FieldValue.arrayUnion([currentUser.uid])
+      }, SetOptions(merge: true));
     }
 
     setState(() {
@@ -50,12 +54,14 @@ class _HomeScreenState extends State<HomeScreen> {
       HouseholdTab(
         householdId: _householdId,
         onHouseholdChanged: _updateHouseholdId,
+        onGoToAccount: () {
+          setState(() {
+            _currentIndex = 3;
+          });
+        },
       ),
       AiAssistantTab(householdId: _householdId),
       AccountTab(householdId: _householdId),
-      const Center(
-          child: Text('Setările contului vor fi aici ⚙️',
-              style: TextStyle(fontSize: 20))), // 4: Setări
     ];
 
     return Scaffold(
@@ -86,17 +92,12 @@ class _HomeScreenState extends State<HomeScreen> {
           NavigationDestination(
             icon: Icon(Icons.auto_awesome_outlined),
             selectedIcon: Icon(Icons.auto_awesome),
-            label: 'AI Chat',
+            label: 'AI',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),
             selectedIcon: Icon(Icons.person),
             label: 'Cont',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings),
-            label: 'Setări',
           ),
         ],
       ),

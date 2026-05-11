@@ -10,39 +10,48 @@ final householdProvider = FutureProvider<String?>((ref) async {
   final db = FirebaseFirestore.instance;
   final prefs = await SharedPreferences.getInstance();
 
-  // Verificăm DACĂ avem deja un Household ID salvat local în browser/telefon
   String? householdId = prefs.getString('pantry_household_id');
 
   if (householdId != null) {
-    return householdId;
+    final householdDoc =
+        await db.collection('households').doc(householdId).get();
+    if (!householdDoc.exists ||
+        !(List.from(householdDoc.data()?['members'] ?? [])
+            .contains(user.uid))) {
+      householdId = null;
+    }
   }
 
-  // Dacă nu avem salvat local, căutăm în Firebase după User UID
   final userRef = db.collection('users').doc(user.uid);
   final userDoc = await userRef.get();
+  final existingHouseholdId = userDoc.data()?['householdId'] as String?;
 
-  if (userDoc.exists) {
-    householdId = userDoc.data()?['householdId'];
-  } else {
-    // Creăm unul nou dacă nu există niciunde
+  if (existingHouseholdId != null && existingHouseholdId.isNotEmpty) {
+    householdId = existingHouseholdId;
+  }
+
+  if (householdId == null) {
     final newHouseholdRef = db.collection('households').doc();
     await newHouseholdRef.set({
       'createdAt': FieldValue.serverTimestamp(),
+      'members': [user.uid],
+      'ownerId': user.uid,
     });
-
     householdId = newHouseholdRef.id;
 
     await userRef.set({
       'householdId': householdId,
       'role': 'admin',
       'createdAt': FieldValue.serverTimestamp(),
-    });
+    }, SetOptions(merge: true));
+  } else {
+    await db.collection('households').doc(householdId).set({
+      'members': FieldValue.arrayUnion([user.uid]),
+    }, SetOptions(merge: true));
+    await userRef.set({'householdId': householdId}, SetOptions(merge: true));
   }
 
-  // SALVĂM LOCAL ID-ul ca să nu-l mai pierdem la refresh
-  if (householdId != null) {
-    await prefs.setString('pantry_household_id', householdId);
-  }
+  await prefs.setString('pantry_household_id', householdId);
 
   return householdId;
 });
