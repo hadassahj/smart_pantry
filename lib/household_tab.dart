@@ -27,6 +27,9 @@ class _HouseholdTabState extends State<HouseholdTab> {
   bool _isSavingName = false;
   bool _ownerRepairAttempted = false;
   final Map<String, int> _suggestedQuantities = {};
+  List<dynamic> _currentMembers = [];
+  String _currentOwnerId = '';
+  bool _currentIsOwner = false;
 
   @override
   void dispose() {
@@ -222,6 +225,203 @@ class _HouseholdTabState extends State<HouseholdTab> {
     }
   }
 
+  void _showHouseholdSettings(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
+      ),
+      builder: (context) {
+        final ownerId = _currentOwnerId;
+        final isOwner = _currentIsOwner;
+
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Card(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  elevation: 3,
+                  shadowColor: Colors.black.withOpacity(0.08),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Membri activi în casă',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        if (ownerId.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Text(
+                              'DEBUG: ownerId is missing!',
+                              style: TextStyle(
+                                color: Colors.red.shade700,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        FutureBuilder<List<Map<String, String>>>(
+                          future: _loadMemberNames(_currentMembers),
+                          builder: (context, memberSnapshot) {
+                            if (memberSnapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return const SizedBox(
+                                height: 40,
+                                child: Center(
+                                  child: SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
+                                  ),
+                                ),
+                              );
+                            }
+
+                            if (memberSnapshot.hasError) {
+                              return Text(
+                                'Eroare la încărcarea membrilor.',
+                                style: TextStyle(
+                                  color: Colors.red.shade600,
+                                  fontSize: 14,
+                                ),
+                              );
+                            }
+
+                            final memberData = memberSnapshot.data ?? [];
+                            if (memberData.isEmpty) {
+                              return const Text(
+                                'Niciun membru activ încă.',
+                                style: TextStyle(
+                                    fontSize: 16, color: Colors.black54),
+                              );
+                            }
+
+                            return Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: memberData.map((member) {
+                                final uid = member['uid'] ?? '';
+                                final displayName = member['displayName'] ??
+                                    'Utilizator necunoscut';
+                                final memberIsOwner =
+                                    uid.isNotEmpty && uid == ownerId;
+                                final removable =
+                                    isOwner && uid.isNotEmpty && uid != ownerId;
+
+                                return Chip(
+                                  label: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(displayName),
+                                      if (memberIsOwner) ...[
+                                        const SizedBox(width: 6),
+                                        const Icon(
+                                          Icons.stars,
+                                          size: 18,
+                                          color: Colors.amber,
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                  backgroundColor: memberIsOwner
+                                      ? Colors.amber.shade50
+                                      : removable
+                                          ? Colors.red.shade50
+                                          : Colors.grey.shade100,
+                                  deleteIcon: removable
+                                      ? const Icon(
+                                          Icons.person_remove,
+                                          color: Colors.red,
+                                        )
+                                      : null,
+                                  onDeleted: removable
+                                      ? () async {
+                                          final confirmed =
+                                              await showDialog<bool>(
+                                            context: context,
+                                            builder: (dialogContext) {
+                                              return AlertDialog(
+                                                title: const Text(
+                                                    'Elimină membru'),
+                                                content: const Text(
+                                                    'Ești sigur că vrei să elimini acest membru?'),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.of(
+                                                                dialogContext)
+                                                            .pop(false),
+                                                    child:
+                                                        const Text('Anulează'),
+                                                  ),
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.of(
+                                                                dialogContext)
+                                                            .pop(true),
+                                                    child:
+                                                        const Text('Elimină'),
+                                                  ),
+                                                ],
+                                              );
+                                            },
+                                          );
+                                          if (confirmed == true) {
+                                            await _kickMember(uid);
+                                          }
+                                        }
+                                      : null,
+                                );
+                              }).toList(),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 20),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.red,
+                              side: const BorderSide(color: Colors.red),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 16,
+                              ),
+                            ),
+                            icon: const Icon(Icons.exit_to_app),
+                            label: const Text('Părăsește Gospodăria'),
+                            onPressed: _leaveHousehold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildAddedByLine(String? uid) {
     if (uid == null || uid.isEmpty) {
       return const SizedBox.shrink();
@@ -232,9 +432,17 @@ class _HouseholdTabState extends State<HouseholdTab> {
         if (!snapshot.hasData) {
           return const SizedBox.shrink();
         }
-        return Text(
-          'Adăugat de: ${snapshot.data}',
-          style: const TextStyle(fontSize: 12, color: Colors.black54),
+        final creatorName = snapshot.data!;
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.person_outline, size: 14, color: Colors.grey),
+            const SizedBox(width: 4),
+            Text(
+              creatorName,
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
         );
       },
     );
@@ -265,9 +473,54 @@ class _HouseholdTabState extends State<HouseholdTab> {
     }
   }
 
+  Future<void> _showEditHouseholdNameDialog(
+      BuildContext context, String currentName) async {
+    _householdNameController.text = currentName;
+    await showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Editează numele gospodăriei'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: _householdNameController,
+                  focusNode: _householdNameFocusNode,
+                  autofocus: true,
+                  maxLength: 30,
+                  decoration: const InputDecoration(
+                    labelText: 'Nume gospodărie',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Anulează'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                await _saveHouseholdName(_householdNameController.text);
+                if (mounted) {
+                  Navigator.of(dialogContext).pop();
+                }
+              },
+              child: const Text('Salvează'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _showInviteSheet() async {
     await showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       isScrollControlled: true,
@@ -522,30 +775,6 @@ class _HouseholdTabState extends State<HouseholdTab> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7F6),
-      appBar: AppBar(
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.black87,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: TextButton.icon(
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.black87,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                backgroundColor: Colors.white.withOpacity(0.85),
-              ),
-              icon: const Icon(Icons.qr_code),
-              label: const Text('Invită / Alătură-te'),
-              onPressed: _showInviteSheet,
-            ),
-          ),
-        ],
-      ),
       body: SafeArea(
         child: StreamBuilder<DocumentSnapshot>(
           stream: FirebaseFirestore.instance
@@ -553,7 +782,8 @@ class _HouseholdTabState extends State<HouseholdTab> {
               .doc(widget.householdId)
               .snapshots(),
           builder: (context, houseSnapshot) {
-            if (houseSnapshot.connectionState == ConnectionState.waiting) {
+            if (houseSnapshot.connectionState == ConnectionState.waiting &&
+                !houseSnapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
             }
 
@@ -565,6 +795,10 @@ class _HouseholdTabState extends State<HouseholdTab> {
                 FirebaseAuth.instance.currentUser?.uid ?? '';
             final String ownerId = houseData['ownerId'] as String? ?? '';
             final bool isOwner = currentUid == ownerId;
+
+            _currentMembers = members;
+            _currentOwnerId = ownerId;
+            _currentIsOwner = isOwner;
 
             if (ownerId.isEmpty &&
                 currentUid.isNotEmpty &&
@@ -582,470 +816,411 @@ class _HouseholdTabState extends State<HouseholdTab> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  TextField(
-                    controller: _householdNameController,
-                    focusNode: _householdNameFocusNode,
-                    decoration: InputDecoration(
-                      hintText: 'Nume gospodărie',
-                      border: const UnderlineInputBorder(),
-                      suffixIcon: _isSavingName
-                          ? const Padding(
-                              padding: EdgeInsets.all(12.0),
-                              child: SizedBox(
-                                width: 16,
-                                height: 16,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2),
-                              ),
-                            )
-                          : null,
-                    ),
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textInputAction: TextInputAction.done,
-                    onSubmitted: _saveHouseholdName,
-                    onEditingComplete: () =>
-                        _saveHouseholdName(_householdNameController.text),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () => _showEditHouseholdNameDialog(
+                              context, householdName),
+                          child: Text(
+                            householdName,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: householdName.length > 10 ? 22 : 28,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                        ),
+                      ),
+                      TextButton.icon(
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.black87,
+                          overlayColor:
+                              const Color(0xFFF25C05).withOpacity(0.1),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          backgroundColor: Colors.white.withOpacity(0.85),
+                        ),
+                        icon: const Icon(Icons.qr_code),
+                        label: const Text('Invită'),
+                        onPressed: _showInviteSheet,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.settings_rounded),
+                        onPressed: () => _showHouseholdSettings(context),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
-                  Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    elevation: 3,
-                    shadowColor: Colors.black.withOpacity(0.08),
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Membri activi în casă',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          if (ownerId.isEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              child: Text(
-                                'DEBUG: ownerId is missing!',
-                                style: TextStyle(
-                                  color: Colors.red.shade700,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          FutureBuilder<List<Map<String, String>>>(
-                            future: _loadMemberNames(members),
-                            builder: (context, memberSnapshot) {
-                              if (memberSnapshot.connectionState ==
-                                  ConnectionState.waiting) {
-                                return const SizedBox(
-                                  height: 40,
-                                  child: Center(
-                                    child: SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(
-                                          strokeWidth: 2),
-                                    ),
-                                  ),
-                                );
-                              }
-
-                              if (memberSnapshot.hasError) {
-                                return Text(
-                                  'Eroare la încărcarea membrilor.',
-                                  style: TextStyle(
-                                    color: Colors.red.shade600,
-                                    fontSize: 14,
-                                  ),
-                                );
-                              }
-
-                              final memberData = memberSnapshot.data ?? [];
-                              if (memberData.isEmpty) {
-                                return const Text(
-                                  'Niciun membru activ încă.',
-                                  style: TextStyle(
-                                      fontSize: 16, color: Colors.black54),
-                                );
-                              }
-
-                              return Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: memberData.map((member) {
-                                  final uid = member['uid'] ?? '';
-                                  final displayName = member['displayName'] ??
-                                      'Utilizator necunoscut';
-                                  final memberIsOwner =
-                                      uid.isNotEmpty && uid == ownerId;
-                                  final removable = isOwner &&
-                                      uid.isNotEmpty &&
-                                      uid != ownerId;
-
-                                  return Chip(
-                                    label: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(displayName),
-                                        if (memberIsOwner) ...[
-                                          const SizedBox(width: 6),
-                                          const Icon(
-                                            Icons.stars,
-                                            size: 18,
-                                            color: Colors.amber,
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                    backgroundColor: memberIsOwner
-                                        ? Colors.amber.shade50
-                                        : removable
-                                            ? Colors.red.shade50
-                                            : Colors.grey.shade100,
-                                    deleteIcon: removable
-                                        ? const Icon(
-                                            Icons.person_remove,
-                                            color: Colors.red,
-                                          )
-                                        : null,
-                                    onDeleted: removable
-                                        ? () async {
-                                            final confirmed =
-                                                await showDialog<bool>(
-                                              context: context,
-                                              builder: (dialogContext) {
-                                                return AlertDialog(
-                                                  title: const Text(
-                                                      'Elimină membru'),
-                                                  content: const Text(
-                                                      'Ești sigur că vrei să elimini acest membru?'),
-                                                  actions: [
-                                                    TextButton(
-                                                      onPressed: () =>
-                                                          Navigator.of(
-                                                                  dialogContext)
-                                                              .pop(false),
-                                                      child: const Text(
-                                                          'Anulează'),
-                                                    ),
-                                                    TextButton(
-                                                      onPressed: () =>
-                                                          Navigator.of(
-                                                                  dialogContext)
-                                                              .pop(true),
-                                                      child:
-                                                          const Text('Elimină'),
-                                                    ),
-                                                  ],
-                                                );
-                                              },
-                                            );
-                                            if (confirmed == true) {
-                                              await _kickMember(uid);
-                                            }
-                                          }
-                                        : null,
-                                  );
-                                }).toList(),
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 20),
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.red,
-                                side: const BorderSide(color: Colors.red),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
-                              ),
-                              icon: const Icon(Icons.exit_to_app),
-                              label: const Text('Părăsește Gospodăria'),
-                              onPressed: _leaveHousehold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  const Text(
-                    'Lista de cumpărături partajată',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
                   Expanded(
-                    child: StreamBuilder<QuerySnapshot>(
-                      stream: FirebaseFirestore.instance
-                          .collection('households')
-                          .doc(widget.householdId)
-                          .collection('shopping_list')
-                          .orderBy('createdAt', descending: false)
-                          .snapshots(),
-                      builder: (context, listSnapshot) {
-                        if (listSnapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return const Center(
-                              child: CircularProgressIndicator());
-                        }
-
-                        if (listSnapshot.hasError) {
-                          return Center(
-                              child: Text('Eroare: ${listSnapshot.error}'));
-                        }
-
-                        final items = listSnapshot.data?.docs ?? [];
-                        final officialItems = <QueryDocumentSnapshot>[];
-                        final suggestedItems = <QueryDocumentSnapshot>[];
-
-                        for (final item in items) {
-                          final data = item.data() as Map<String, dynamic>;
-                          if (data['isSuggested'] == true) {
-                            suggestedItems.add(item);
-                          } else {
-                            officialItems.add(item);
-                          }
-                        }
-
-                        if (officialItems.isEmpty && suggestedItems.isEmpty) {
-                          return Center(
-                            child: Text(
-                              'Lista de cumpărături este goală. Apasă + pentru a adăuga.',
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
-                                fontSize: 16,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          );
-                        }
-
-                        return ListView(
-                          padding: const EdgeInsets.only(bottom: 16),
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(40),
+                        ),
+                      ),
+                      child: Padding(
+                        padding:
+                            const EdgeInsets.only(top: 24, left: 10, right: 10),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (officialItems.isEmpty) ...[
-                              Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 12),
-                                child: Text(
-                                  'Nicio intrare oficială încă.',
-                                  style: TextStyle(
-                                      color: Colors.grey.shade600,
-                                      fontSize: 16),
-                                ),
-                              )
-                            ],
-                            ...officialItems.map((doc) {
-                              final data = doc.data() as Map<String, dynamic>;
-                              final name = data['name'] as String? ?? 'Produs';
-                              final quantity =
-                                  data['quantity']?.toString() ?? '1';
-                              final price = (data['estimatedPrice'] != null)
-                                  ? (data['estimatedPrice'] as num).toDouble()
-                                  : 0.0;
-                              final isBought =
-                                  data['isBought'] as bool? ?? false;
-
-                              return Card(
-                                margin: const EdgeInsets.symmetric(
-                                    vertical: 6, horizontal: 0),
-                                child: CheckboxListTile(
-                                  value: isBought,
-                                  onChanged: (value) {
-                                    if (value != null) {
-                                      _toggleItemBought(doc.id, value);
-                                    }
-                                  },
-                                  title: Text(name,
-                                      style: TextStyle(
-                                        decoration: isBought
-                                            ? TextDecoration.lineThrough
-                                            : null,
-                                      )),
-                                  subtitle: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                          'Cantitate: $quantity • Est. Preț: ${price.toStringAsFixed(2)} RON'),
-                                      const SizedBox(height: 4),
-                                      _buildAddedByLine(
-                                          data['addedBy'] as String?),
-                                    ],
-                                  ),
-                                  secondary: IconButton(
-                                    icon: const Icon(Icons.delete_outline),
-                                    onPressed: () =>
-                                        _deleteShoppingItem(doc.id),
-                                  ),
-                                ),
-                              );
-                            }).toList(),
-                            if (suggestedItems.isNotEmpty) ...[
-                              const SizedBox(height: 16),
-                              const Divider(),
-                              const SizedBox(height: 12),
-                              Text(
-                                'Sugestii din cămară',
+                            Padding(
+                              padding: const EdgeInsets.only(left: 12.0),
+                              child: const Text(
+                                'Lista de cumpărături partajată',
                                 style: TextStyle(
-                                  color: Colors.grey.shade700,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                                    fontSize: 18, fontWeight: FontWeight.bold),
                               ),
-                              const SizedBox(height: 12),
-                              ...suggestedItems.map((doc) {
-                                final data = doc.data() as Map<String, dynamic>;
-                                final name =
-                                    data['name'] as String? ?? 'Produs';
-                                final rawQuantity = data['quantity'];
-                                final currentQuantity =
-                                    _suggestedQuantities[doc.id] ??
-                                        (rawQuantity is int
-                                            ? rawQuantity
-                                            : int.tryParse(
-                                                    rawQuantity?.toString() ??
-                                                        '1') ??
-                                                1);
-                                _suggestedQuantities[doc.id] = currentQuantity;
+                            ),
+                            const SizedBox(height: 12),
+                            Expanded(
+                              child: StreamBuilder<QuerySnapshot>(
+                                stream: FirebaseFirestore.instance
+                                    .collection('households')
+                                    .doc(widget.householdId)
+                                    .collection('shopping_list')
+                                    .orderBy('createdAt', descending: false)
+                                    .snapshots(),
+                                builder: (context, listSnapshot) {
+                                  if (listSnapshot.connectionState ==
+                                          ConnectionState.waiting &&
+                                      !listSnapshot.hasData) {
+                                    return const Center(
+                                        child: CircularProgressIndicator());
+                                  }
 
-                                return Container(
-                                  margin: const EdgeInsets.symmetric(
-                                      vertical: 6, horizontal: 0),
-                                  decoration: BoxDecoration(
-                                    color: Colors.teal.shade50,
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: Colors.teal.shade100,
-                                      width: 1,
-                                    ),
-                                  ),
-                                  child: ListTile(
-                                    title: Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            name,
-                                            style: const TextStyle(
-                                                fontWeight: FontWeight.w600),
-                                            overflow: TextOverflow.ellipsis,
-                                            maxLines: 1,
-                                          ),
+                                  if (listSnapshot.hasError) {
+                                    return Center(
+                                        child: Text(
+                                            'Eroare: ${listSnapshot.error}'));
+                                  }
+
+                                  final items = listSnapshot.data?.docs ?? [];
+                                  final officialItems =
+                                      <QueryDocumentSnapshot>[];
+                                  final suggestedItems =
+                                      <QueryDocumentSnapshot>[];
+
+                                  for (final item in items) {
+                                    final data =
+                                        item.data() as Map<String, dynamic>;
+                                    if (data['isSuggested'] == true) {
+                                      suggestedItems.add(item);
+                                    } else {
+                                      officialItems.add(item);
+                                    }
+                                  }
+
+                                  officialItems.sort((a, b) {
+                                    final aData =
+                                        a.data() as Map<String, dynamic>;
+                                    final bData =
+                                        b.data() as Map<String, dynamic>;
+                                    final aBought =
+                                        aData['isBought'] as bool? ?? false;
+                                    final bBought =
+                                        bData['isBought'] as bool? ?? false;
+                                    if (aBought != bBought)
+                                      return aBought ? 1 : -1;
+                                    final aName =
+                                        (aData['name'] as String? ?? '')
+                                            .toLowerCase();
+                                    final bName =
+                                        (bData['name'] as String? ?? '')
+                                            .toLowerCase();
+                                    return aName.compareTo(bName);
+                                  });
+
+                                  if (officialItems.isEmpty &&
+                                      suggestedItems.isEmpty) {
+                                    return Center(
+                                      child: Text(
+                                        'Lista de cumpărături este goală. Apasă + pentru a adăuga.',
+                                        style: TextStyle(
+                                          color: Colors.grey.shade600,
+                                          fontSize: 16,
                                         ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    );
+                                  }
+
+                                  return ListView(
+                                    padding: const EdgeInsets.only(bottom: 16),
+                                    children: [
+                                      if (officialItems.isEmpty) ...[
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 12),
+                                          child: Text(
+                                            'Nicio intrare oficială încă.',
+                                            style: TextStyle(
+                                                color: Colors.grey.shade600,
+                                                fontSize: 16),
+                                          ),
+                                        )
                                       ],
-                                    ),
-                                    subtitle: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            IconButton(
-                                              icon: const Icon(Icons.remove,
-                                                  color: Colors.redAccent),
-                                              onPressed: () {
-                                                setState(() {
-                                                  final newValue =
-                                                      (_suggestedQuantities[
-                                                                  doc.id] ??
-                                                              1) -
-                                                          1;
-                                                  _suggestedQuantities[doc.id] =
-                                                      newValue < 1
-                                                          ? 1
-                                                          : newValue;
-                                                });
-                                              },
+                                      ...officialItems.map((doc) {
+                                        final data =
+                                            doc.data() as Map<String, dynamic>;
+                                        final name =
+                                            data['name'] as String? ?? 'Produs';
+                                        final quantity =
+                                            data['quantity']?.toString() ?? '1';
+                                        final isBought =
+                                            data['isBought'] as bool? ?? false;
+
+                                        return Card(
+                                          margin: const EdgeInsets.symmetric(
+                                              vertical: 4, horizontal: 0),
+                                          child: CheckboxListTile(
+                                            visualDensity:
+                                                VisualDensity.compact,
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                    horizontal: 12,
+                                                    vertical: 0),
+                                            value: isBought,
+                                            onChanged: (value) {
+                                              if (value != null) {
+                                                _toggleItemBought(
+                                                    doc.id, value);
+                                              }
+                                            },
+                                            title: Text(name,
+                                                style: TextStyle(
+                                                  decoration: isBought
+                                                      ? TextDecoration
+                                                          .lineThrough
+                                                      : null,
+                                                )),
+                                            subtitle: Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
+                                              children: [
+                                                Text(
+                                                  'x$quantity',
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.w400,
+                                                    fontSize: 14,
+                                                    color: Colors.grey.shade700,
+                                                  ),
+                                                ),
+                                                _buildAddedByLine(
+                                                    data['addedBy'] as String?),
+                                              ],
                                             ),
-                                            Container(
+                                            secondary: Padding(
                                               padding:
                                                   const EdgeInsets.symmetric(
-                                                      horizontal: 14,
-                                                      vertical: 8),
-                                              decoration: BoxDecoration(
-                                                color: Colors.white,
-                                                borderRadius:
-                                                    BorderRadius.circular(16),
-                                              ),
-                                              child: Text(
-                                                '${_suggestedQuantities[doc.id] ?? 1}',
-                                                style: const TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 16),
+                                                      horizontal: 0.0),
+                                              child: SizedBox(
+                                                width: 28,
+                                                height: 28,
+                                                child: IconButton(
+                                                  iconSize: 24,
+                                                  color: Colors.grey.shade400,
+                                                  icon: const Icon(
+                                                      Icons.delete_outline),
+                                                  onPressed: () =>
+                                                      _deleteShoppingItem(
+                                                          doc.id),
+                                                ),
                                               ),
                                             ),
-                                            IconButton(
-                                              icon: const Icon(Icons.add,
-                                                  color: Colors.teal),
-                                              onPressed: () {
-                                                setState(() {
-                                                  _suggestedQuantities[doc.id] =
-                                                      (_suggestedQuantities[
+                                          ),
+                                        );
+                                      }).toList(),
+                                      if (suggestedItems.isNotEmpty) ...[
+                                        const SizedBox(height: 16),
+                                        const Divider(),
+                                        const SizedBox(height: 12),
+                                        Text(
+                                          'Sugestii din cămară',
+                                          style: TextStyle(
+                                            color: Colors.grey.shade700,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        ...suggestedItems.map((doc) {
+                                          final data = doc.data()
+                                              as Map<String, dynamic>;
+                                          final name =
+                                              data['name'] as String? ??
+                                                  'Produs';
+                                          final rawQuantity = data['quantity'];
+                                          final currentQuantity =
+                                              _suggestedQuantities[doc.id] ??
+                                                  (rawQuantity is int
+                                                      ? rawQuantity
+                                                      : int.tryParse(rawQuantity
+                                                                  ?.toString() ??
+                                                              '1') ??
+                                                          1);
+                                          _suggestedQuantities[doc.id] =
+                                              currentQuantity;
+
+                                          return Container(
+                                            margin: const EdgeInsets.symmetric(
+                                                vertical: 4, horizontal: 0),
+                                            decoration: BoxDecoration(
+                                              color: Colors.green.shade50,
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                              border: Border.all(
+                                                color: Colors.green.shade200,
+                                                width: 1,
+                                              ),
+                                            ),
+                                            child: ListTile(
+                                              visualDensity:
+                                                  VisualDensity.compact,
+                                              contentPadding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 12,
+                                                      vertical: 0),
+                                              title: Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: Text(
+                                                      name,
+                                                      style: const TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.w600),
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      maxLines: 1,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              subtitle: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      IconButton(
+                                                        visualDensity:
+                                                            VisualDensity
+                                                                .compact,
+                                                        icon: const Icon(
+                                                            Icons.remove,
+                                                            color: Colors
+                                                                .redAccent),
+                                                        onPressed: () {
+                                                          setState(() {
+                                                            final newValue =
+                                                                (_suggestedQuantities[
+                                                                            doc.id] ??
+                                                                        1) -
+                                                                    1;
+                                                            _suggestedQuantities[
+                                                                    doc.id] =
+                                                                newValue < 1
+                                                                    ? 1
+                                                                    : newValue;
+                                                          });
+                                                        },
+                                                      ),
+                                                      Container(
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .symmetric(
+                                                                horizontal: 14,
+                                                                vertical: 8),
+                                                        decoration:
+                                                            BoxDecoration(
+                                                          color: Colors.white,
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(16),
+                                                        ),
+                                                        child: Text(
+                                                          '${_suggestedQuantities[doc.id] ?? 1}',
+                                                          style:
+                                                              const TextStyle(
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold,
+                                                                  fontSize: 16),
+                                                        ),
+                                                      ),
+                                                      IconButton(
+                                                        visualDensity:
+                                                            VisualDensity
+                                                                .compact,
+                                                        icon: Icon(Icons.add,
+                                                            color: Colors.green
+                                                                .shade700),
+                                                        onPressed: () {
+                                                          setState(() {
+                                                            _suggestedQuantities[
+                                                                    doc.id] =
+                                                                (_suggestedQuantities[
+                                                                            doc.id] ??
+                                                                        1) +
+                                                                    1;
+                                                          });
+                                                        },
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  _buildAddedByLine(
+                                                      data['addedBy']
+                                                          as String?),
+                                                ],
+                                              ),
+                                              trailing: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  IconButton(
+                                                    icon: Icon(Icons.add_task,
+                                                        color: Colors
+                                                            .green.shade700),
+                                                    onPressed: () {
+                                                      final promotedQuantity =
+                                                          _suggestedQuantities[
                                                                   doc.id] ??
-                                                              1) +
-                                                          1;
-                                                });
-                                              },
-                                            ),
-                                            const SizedBox(width: 12),
-                                            Flexible(
-                                              child: Text(
-                                                'Est. Preț: ${data['estimatedPrice'] != null ? (data['estimatedPrice'] as num).toDouble().toStringAsFixed(2) : '0.00'} RON',
-                                                style: const TextStyle(
-                                                    color: Colors.black54),
-                                                overflow: TextOverflow.ellipsis,
+                                                              1;
+                                                      _promoteSuggestedItem(
+                                                          doc.id,
+                                                          promotedQuantity);
+                                                    },
+                                                  ),
+                                                  IconButton(
+                                                    icon: const Icon(
+                                                        Icons.close,
+                                                        color:
+                                                            Colors.redAccent),
+                                                    onPressed: () =>
+                                                        _deleteShoppingItem(
+                                                            doc.id),
+                                                  ),
+                                                ],
                                               ),
                                             ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 8),
-                                        _buildAddedByLine(
-                                            data['addedBy'] as String?),
+                                          );
+                                        }).toList(),
                                       ],
-                                    ),
-                                    trailing: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        IconButton(
-                                          icon: const Icon(Icons.add_task,
-                                              color: Colors.teal),
-                                          onPressed: () {
-                                            final promotedQuantity =
-                                                _suggestedQuantities[doc.id] ??
-                                                    1;
-                                            _promoteSuggestedItem(
-                                                doc.id, promotedQuantity);
-                                          },
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(Icons.close,
-                                              color: Colors.redAccent),
-                                          onPressed: () =>
-                                              _deleteShoppingItem(doc.id),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
-                            ],
+                                    ],
+                                  );
+                                },
+                              ),
+                            ),
                           ],
-                        );
-                      },
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -1057,8 +1232,12 @@ class _HouseholdTabState extends State<HouseholdTab> {
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 70.0),
         child: FloatingActionButton(
-          onPressed: _showAddShoppingItemDialog,
-          child: const Icon(Icons.add),
+          onPressed: () {
+            _showAddShoppingItemDialog();
+          },
+          child: const Icon(Icons.add, size: 32),
+          backgroundColor: const Color(0xFFF25C05),
+          foregroundColor: Colors.white,
         ),
       ),
     );

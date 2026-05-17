@@ -74,7 +74,10 @@ class _HomeScreenState extends State<HomeScreen> {
         elevation: 0,
         backgroundColor: Colors.transparent,
       ),
-      body: screens[_currentIndex],
+      body: IndexedStack(
+        index: _currentIndex,
+        children: screens,
+      ),
 
       // 2. Meniul de jos cu bară flotantă
       bottomNavigationBar: Container(

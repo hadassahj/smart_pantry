@@ -176,7 +176,7 @@ class _PantryTabState extends State<PantryTab> {
                   ),
                   IconButton(
                     style: IconButton.styleFrom(
-                      backgroundColor: const Color(0xFFFFD166).withOpacity(0.3),
+                      backgroundColor: const Color(0xFFFFD54F).withOpacity(0.3),
                       padding: const EdgeInsets.all(12),
                     ),
                     icon: const Icon(Icons.edit_rounded,
@@ -323,7 +323,7 @@ class _PantryTabState extends State<PantryTab> {
   Widget build(BuildContext context) {
     return Scaffold(
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: const Color(0xFFFFD54F),
       body: SafeArea(
         bottom: false, // Lasă albul să curgă până jos
         child: Column(
@@ -332,7 +332,7 @@ class _PantryTabState extends State<PantryTab> {
             // 1. Header-ul vibrant (zona galbenă)
             Container(
               width: double.infinity,
-              color: const Color(0xFFFFD166),
+              color: const Color(0xFFFFD54F),
               child: const Padding(
                 padding: EdgeInsets.only(left: 24.0, top: 20.0, bottom: 24.0),
                 child: Text(
@@ -498,9 +498,16 @@ class _PantryTabState extends State<PantryTab> {
                                   final closestExpiry =
                                       (batches.first['expiryDate'] as Timestamp)
                                           .toDate();
-                                  final daysLeft = closestExpiry
-                                      .difference(DateTime.now())
-                                      .inDays;
+                                  final now = DateTime.now();
+                                  final today =
+                                      DateTime(now.year, now.month, now.day);
+                                  final expiryDay = DateTime(
+                                    closestExpiry.year,
+                                    closestExpiry.month,
+                                    closestExpiry.day,
+                                  );
+                                  final daysLeft =
+                                      expiryDay.difference(today).inDays;
 
                                   if (daysLeft < 0) {
                                     expiryText = 'Expirat!';

@@ -15,13 +15,16 @@ class _AccountTabState extends State<AccountTab> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _dietaryController = TextEditingController();
   bool _isProcessing = false;
+  bool _isSavingPreferences = false;
   bool isLoginMode = false;
 
   @override
   void initState() {
     super.initState();
     _loadCurrentName();
+    _loadDietaryPreferences();
   }
 
   @override
@@ -29,6 +32,7 @@ class _AccountTabState extends State<AccountTab> {
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _dietaryController.dispose();
     super.dispose();
   }
 
@@ -55,6 +59,19 @@ class _AccountTabState extends State<AccountTab> {
     _nameController.text = name;
   }
 
+  Future<void> _loadDietaryPreferences() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .get();
+
+    final preferences = doc.data()?['dietaryPreferences'] as String? ?? '';
+    _dietaryController.text = preferences;
+  }
+
   Future<void> _saveDisplayName() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
@@ -78,6 +95,36 @@ class _AccountTabState extends State<AccountTab> {
       if (mounted) setState(() {});
     } catch (_) {
       _showMessage('Eroare la salvarea numelui.');
+    }
+  }
+
+  Future<void> _saveDietaryPreferences() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      _showMessage('Nu există utilizator conectat.');
+      return;
+    }
+
+    setState(() {
+      _isSavingPreferences = true;
+    });
+
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set(
+        {
+          'dietaryPreferences': _dietaryController.text.trim(),
+        },
+        SetOptions(merge: true),
+      );
+      _showMessage('Preferințele culinare au fost salvate.');
+    } catch (_) {
+      _showMessage('Eroare la salvarea preferințelor culinare.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSavingPreferences = false;
+        });
+      }
     }
   }
 
@@ -372,6 +419,64 @@ class _AccountTabState extends State<AccountTab> {
                       child: ElevatedButton(
                         onPressed: _isProcessing ? null : _saveDisplayName,
                         child: const Text('Salvează numele'),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Card(
+                      elevation: 1,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: const [
+                                Icon(Icons.restaurant_menu_rounded,
+                                    color: Colors.teal),
+                                SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'Preferințe culinare / Dietă',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller: _dietaryController,
+                              decoration: const InputDecoration(
+                                hintText:
+                                    'Ex: Paleo, Vegan, Fără gluten, Halal, Adventist...',
+                                border: OutlineInputBorder(),
+                                isDense: true,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton(
+                                onPressed: _isSavingPreferences
+                                    ? null
+                                    : _saveDietaryPreferences,
+                                child: _isSavingPreferences
+                                    ? const SizedBox(
+                                        height: 18,
+                                        width: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Text('Salvează preferințe'),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     const SizedBox(height: 24),
