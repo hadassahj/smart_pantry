@@ -65,42 +65,75 @@ class _HomeScreenState extends State<HomeScreen> {
     ];
 
     return Scaffold(
-      // Eliminăm AppBar-ul sau îl facem invizibil
+      extendBody: true,
+      // 1. Păstrăm fundalul galben al aplicației
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+
       appBar: AppBar(
-        toolbarHeight: 0, // Îl facem de înălțime 0
+        toolbarHeight: 0,
         elevation: 0,
         backgroundColor: Colors.transparent,
       ),
       body: screens[_currentIndex],
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (int index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.inventory_2_outlined),
-            selectedIcon: Icon(Icons.inventory_2),
-            label: 'Cămară',
+
+      // 2. Meniul de jos cu bară flotantă
+      bottomNavigationBar: Container(
+        child: Container(
+          decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(32)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 15,
+                  offset: const Offset(0, -5),
+                )
+              ]),
+          child: SafeArea(
+            child: ClipRRect(
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(32)),
+              child: NavigationBar(
+                height: 70,
+                backgroundColor: Colors.white,
+                elevation: 0,
+                indicatorColor: const Color(0xFFF25C05).withOpacity(0.15),
+                selectedIndex: _currentIndex,
+                onDestinationSelected: (int index) {
+                  setState(() {
+                    _currentIndex = index;
+                  });
+                },
+                destinations: const [
+                  NavigationDestination(
+                    icon: Icon(Icons.inventory_2_outlined),
+                    selectedIcon:
+                        Icon(Icons.inventory_2, color: Color(0xFFF25C05)),
+                    label: 'Cămară',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.family_restroom_outlined),
+                    selectedIcon:
+                        Icon(Icons.family_restroom, color: Color(0xFFF25C05)),
+                    label: 'Gospodărie',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.auto_awesome_outlined),
+                    selectedIcon:
+                        Icon(Icons.auto_awesome, color: Color(0xFFF25C05)),
+                    label: 'AI',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.person_outline),
+                    selectedIcon: Icon(Icons.person, color: Color(0xFFF25C05)),
+                    label: 'Cont',
+                  ),
+                ],
+              ),
+            ),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.family_restroom_outlined),
-            selectedIcon: Icon(Icons.family_restroom),
-            label: 'Gospodărie',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.auto_awesome_outlined),
-            selectedIcon: Icon(Icons.auto_awesome),
-            label: 'AI',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Cont',
-          ),
-        ],
+        ),
       ),
     );
   }

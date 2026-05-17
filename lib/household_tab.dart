@@ -934,9 +934,19 @@ class _HouseholdTabState extends State<HouseholdTab> {
                                     ),
                                   ),
                                   child: ListTile(
-                                    title: Text(name,
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.w600)),
+                                    title: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            name,
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.w600),
+                                            overflow: TextOverflow.ellipsis,
+                                            maxLines: 1,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                     subtitle: Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
@@ -992,10 +1002,13 @@ class _HouseholdTabState extends State<HouseholdTab> {
                                               },
                                             ),
                                             const SizedBox(width: 12),
-                                            Text(
-                                              'Est. Preț: ${data['estimatedPrice'] != null ? (data['estimatedPrice'] as num).toDouble().toStringAsFixed(2) : '0.00'} RON',
-                                              style: const TextStyle(
-                                                  color: Colors.black54),
+                                            Flexible(
+                                              child: Text(
+                                                'Est. Preț: ${data['estimatedPrice'] != null ? (data['estimatedPrice'] as num).toDouble().toStringAsFixed(2) : '0.00'} RON',
+                                                style: const TextStyle(
+                                                    color: Colors.black54),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
                                             ),
                                           ],
                                         ),
@@ -1041,9 +1054,12 @@ class _HouseholdTabState extends State<HouseholdTab> {
           },
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAddShoppingItemDialog,
-        child: const Icon(Icons.add),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 70.0),
+        child: FloatingActionButton(
+          onPressed: _showAddShoppingItemDialog,
+          child: const Icon(Icons.add),
+        ),
       ),
     );
   }

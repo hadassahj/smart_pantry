@@ -19,7 +19,7 @@ class _AddProductSheetState extends State<AddProductSheet> {
   late final TextEditingController _nameController;
   int _quantity = 1;
   DateTime _selectedExpiryDate =
-      DateTime.now().add(const Duration(days: 7)); // Default 7 zile
+      DateTime.now().add(const Duration(days: 10)); // Default 10 zile
   bool _isLoading = false;
 
   @override
@@ -109,77 +109,83 @@ class _AddProductSheetState extends State<AddProductSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-        left: 20,
-        right: 20,
-        top: 20,
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text('Adaugă Produs',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 20),
-          TextField(
-            controller: _nameController,
-            decoration: const InputDecoration(
-                labelText: 'Nume Produs',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.fastfood)),
-            autofocus: true,
-          ),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Expiră la:', style: TextStyle(fontSize: 16)),
-              TextButton.icon(
-                onPressed: _pickDate,
-                icon: const Icon(Icons.calendar_today),
-                label: Text(
-                    DateFormat('dd MMM yyyy').format(_selectedExpiryDate),
-                    style: const TextStyle(fontSize: 16)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Cantitate:', style: TextStyle(fontSize: 16)),
-              Row(
-                children: [
-                  IconButton(
-                      onPressed: () {
-                        if (_quantity > 1) setState(() => _quantity--);
-                      },
-                      icon: const Icon(Icons.remove_circle_outline)),
-                  Text('$_quantity',
-                      style: const TextStyle(
-                          fontSize: 20, fontWeight: FontWeight.bold)),
-                  IconButton(
-                      onPressed: () => setState(() => _quantity++),
-                      icon: const Icon(Icons.add_circle_outline)),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: FilledButton(
-              onPressed: _isLoading ? null : _saveProduct,
-              child: _isLoading
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('Salvează în Cămară',
-                      style: TextStyle(fontSize: 16)),
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+          left: 20,
+          right: 20,
+          top: 20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Adaugă Produs',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
+            TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(
+                  labelText: 'Nume Produs',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.fastfood)),
+              autofocus: true,
             ),
-          ),
-          const SizedBox(height: 20),
-        ],
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Expiră la:', style: TextStyle(fontSize: 16)),
+                TextButton.icon(
+                  onPressed: _pickDate,
+                  icon: const Icon(Icons.calendar_today),
+                  label: Text(
+                      DateFormat('dd MMM yyyy').format(_selectedExpiryDate),
+                      style: const TextStyle(fontSize: 16)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Cantitate:', style: TextStyle(fontSize: 16)),
+                Row(
+                  children: [
+                    IconButton(
+                        onPressed: () {
+                          if (_quantity > 1) setState(() => _quantity--);
+                        },
+                        icon: const Icon(Icons.remove_circle_outline)),
+                    Text('$_quantity',
+                        style: const TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.bold)),
+                    IconButton(
+                        onPressed: () => setState(() => _quantity++),
+                        icon: const Icon(Icons.add_circle_outline)),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: FilledButton(
+                onPressed: _isLoading ? null : _saveProduct,
+                child: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text('Salvează în Cămară',
+                        style: TextStyle(fontSize: 16)),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }
