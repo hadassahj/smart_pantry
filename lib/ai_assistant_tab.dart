@@ -65,47 +65,67 @@ You must strictly respect the user's culinary/dietary preferences. Additionally,
           .collection('inventory')
           .get();
 
-      final filteredDocs = snapshot.docs.where((doc) {
+      // 1. Filter out items that are out of stock (quantity <= 0 or null)
+      var activeDocs = snapshot.docs.where((doc) {
         final data = doc.data();
-        final quantity = data['quantity'];
-        final isConsumed = data['isConsumed'];
-        final hasValidQuantity = quantity is num ? quantity > 0 : true;
-        final consumedFlag = isConsumed == true;
-        return hasValidQuantity && !consumedFlag;
+        final rawQuantity = data['totalQuantity'];
+        if (rawQuantity == null) return false;
+
+        // Safely parse num (handles both int, double, and numeric strings)
+        final quantity = num.tryParse(rawQuantity.toString()) ?? 0;
+        return quantity > 0;
       }).toList();
 
-      if (filteredDocs.isEmpty) {
+      if (activeDocs.isEmpty) {
         final prompt =
             "Context: The user's pantry is currently empty.\n\nUser request: $text";
         final response = await _model.generateContent([Content.text(prompt)]);
         return response.text ?? 'Nu am putut formula un răspuns.';
       }
 
-      filteredDocs.sort((a, b) {
-        final aData = a.data();
-        final bData = b.data();
-        final aExpiry = aData['expiryDate'] ?? aData['expiry_date'];
-        final bExpiry = bData['expiryDate'] ?? bData['expiry_date'];
-        if (aExpiry is Timestamp && bExpiry is Timestamp) {
-          return aExpiry.compareTo(bExpiry);
+      // 2. Exact FEFO Sorting using 'expiryDate' on the filtered active items
+      activeDocs.sort((a, b) {
+        final dataA = a.data();
+        final dataB = b.data();
+
+        final rawDateA = dataA['expiryDate'];
+        final rawDateB = dataB['expiryDate'];
+
+        if (rawDateA == null && rawDateB == null) return 0;
+        if (rawDateA == null) return 1;
+        if (rawDateB == null) return -1;
+
+        DateTime dateA;
+        DateTime dateB;
+
+        if (rawDateA is Timestamp) {
+          dateA = rawDateA.toDate();
+        } else if (rawDateA is DateTime) {
+          dateA = rawDateA;
+        } else {
+          dateA = DateTime.now().add(const Duration(days: 3650));
         }
-        if (aExpiry is DateTime && bExpiry is DateTime) {
-          return aExpiry.compareTo(bExpiry);
+
+        if (rawDateB is Timestamp) {
+          dateB = rawDateB.toDate();
+        } else if (rawDateB is DateTime) {
+          dateB = rawDateB;
+        } else {
+          dateB = DateTime.now().add(const Duration(days: 3650));
         }
-        if (aExpiry is Timestamp && bExpiry is DateTime) {
-          return aExpiry.toDate().compareTo(bExpiry);
-        }
-        if (aExpiry is DateTime && bExpiry is Timestamp) {
-          return aExpiry.compareTo(bExpiry.toDate());
-        }
-        return 0;
+
+        return dateA.compareTo(dateB);
       });
 
-      final List<String> pantryItems = filteredDocs.map((doc) {
+      // 3. Exact Data Mapping using 'totalQuantity' from active items
+      final List<String> pantryItems = activeDocs.map((doc) {
         final data = doc.data();
-        final name = data['name'] ?? 'Produs necunoscut';
-        final quantity = data['quantity'] ?? 1;
-        return "- $name (Cantitate: $quantity)";
+        final name = data['name'] ?? data['nume'] ?? 'Produs necunoscut';
+        final rawQuantity = data['totalQuantity'];
+        final quantity = rawQuantity != null ? rawQuantity.toString() : '0';
+        final unit = data['unit'] ?? data['unitMeasure'] ?? '';
+
+        return "- $name (Cantitate: $quantity $unit)".trim();
       }).toList();
 
       final contextText = """

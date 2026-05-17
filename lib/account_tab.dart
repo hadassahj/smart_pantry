@@ -29,10 +29,6 @@ class _AccountTabState extends State<AccountTab> {
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    _dietaryController.dispose();
     super.dispose();
   }
 
@@ -56,6 +52,7 @@ class _AccountTabState extends State<AccountTab> {
 
     final name =
         doc.data()?['displayName'] as String? ?? user.displayName ?? '';
+    if (!mounted) return;
     _nameController.text = name;
   }
 
@@ -69,6 +66,7 @@ class _AccountTabState extends State<AccountTab> {
         .get();
 
     final preferences = doc.data()?['dietaryPreferences'] as String? ?? '';
+    if (!mounted) return;
     _dietaryController.text = preferences;
   }
 
@@ -91,9 +89,14 @@ class _AccountTabState extends State<AccountTab> {
         SetOptions(merge: true),
       );
       await user.updateDisplayName(name);
+      if (!mounted) return;
       _showMessage('Numele a fost salvat.');
-      if (mounted) setState(() {});
+      if (mounted && ModalRoute.of(context)?.isCurrent == false) {
+        Navigator.of(context).pop();
+      }
+      setState(() {});
     } catch (_) {
+      if (!mounted) return;
       _showMessage('Eroare la salvarea numelui.');
     }
   }
@@ -116,8 +119,13 @@ class _AccountTabState extends State<AccountTab> {
         },
         SetOptions(merge: true),
       );
+      if (!mounted) return;
       _showMessage('Preferințele culinare au fost salvate.');
+      if (mounted && ModalRoute.of(context)?.isCurrent == false) {
+        Navigator.of(context).pop();
+      }
     } catch (_) {
+      if (!mounted) return;
       _showMessage('Eroare la salvarea preferințelor culinare.');
     } finally {
       if (mounted) {
@@ -231,10 +239,15 @@ class _AccountTabState extends State<AccountTab> {
 
         final newHouseholdId = await _ensureHouseholdForCurrentUser(user);
         await _mergeInventory(oldHouseholdId, newHouseholdId, oldItems);
+        if (!mounted) return;
         _showMessage('Autentificare reușită!');
+        if (mounted && ModalRoute.of(context)?.isCurrent == false) {
+          Navigator.of(context).pop();
+        }
       } else {
         final user = FirebaseAuth.instance.currentUser;
         if (user == null) {
+          if (!mounted) return;
           _showMessage('Nu există utilizator conectat.');
           return;
         }
@@ -245,14 +258,17 @@ class _AccountTabState extends State<AccountTab> {
         );
         await user.linkWithCredential(credential);
         await _ensureHouseholdForCurrentUser(user);
+        if (!mounted) return;
         _showMessage('Cont creat cu succes!');
+        if (mounted && ModalRoute.of(context)?.isCurrent == false) {
+          Navigator.of(context).pop();
+        }
       }
 
-      _passwordController.clear();
-      if (mounted)
-        setState(() {
-          isLoginMode = false;
-        });
+      if (!mounted) return;
+      setState(() {
+        isLoginMode = false;
+      });
     } on FirebaseAuthException catch (e) {
       final code = e.code;
       String message;
@@ -277,13 +293,17 @@ class _AccountTabState extends State<AccountTab> {
           message = e.message ?? 'A apărut o eroare la crearea contului.';
         }
       }
+      if (!mounted) return;
       _showMessage(message);
     } catch (_) {
+      if (!mounted) return;
       _showMessage('A apărut o eroare. Încearcă din nou mai târziu.');
     } finally {
-      setState(() {
-        _isProcessing = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+      }
     }
   }
 
@@ -296,8 +316,10 @@ class _AccountTabState extends State<AccountTab> {
 
     try {
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      if (!mounted) return;
       _showMessage('Email de resetare trimis!');
     } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
       if (e.code == 'user-not-found') {
         _showMessage('Utilizator negăsit.');
       } else if (e.code == 'invalid-email') {
@@ -306,6 +328,7 @@ class _AccountTabState extends State<AccountTab> {
         _showMessage(e.message ?? 'Eroare la trimiterea resetului de parolă.');
       }
     } catch (_) {
+      if (!mounted) return;
       _showMessage('A apărut o eroare. Încearcă din nou mai târziu.');
     }
   }
@@ -321,24 +344,286 @@ class _AccountTabState extends State<AccountTab> {
 
       await FirebaseAuth.instance.signOut();
       await FirebaseAuth.instance.signInAnonymously();
+      if (!mounted) return;
       _showMessage('Ai fost deconectat și conectat anonim.');
+      if (mounted && ModalRoute.of(context)?.isCurrent == false) {
+        Navigator.of(context).pop();
+      }
     } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
       _showMessage(e.message ?? 'Eroare la deconectare.');
     } catch (_) {
+      if (!mounted) return;
       _showMessage('A apărut o eroare la deconectare.');
     } finally {
-      setState(() {
-        _isProcessing = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+      }
     }
+  }
+
+  Future<void> _showEditNameSheet() async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
+          ),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Schimbă numele',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Numele tău',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _isProcessing
+                          ? null
+                          : () async {
+                              await _saveDisplayName();
+                              if (mounted) Navigator.of(sheetContext).pop();
+                            },
+                      child: const Text('Salvează numele'),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showEditDietSheet() async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
+          ),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Preferințe culinare / Dietă',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _dietaryController,
+                    decoration: const InputDecoration(
+                      hintText:
+                          'Ex: Paleo, Vegan, Fără gluten, Halal, Adventist...',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _isSavingPreferences
+                          ? null
+                          : () async {
+                              await _saveDietaryPreferences();
+                              if (mounted) Navigator.of(sheetContext).pop();
+                            },
+                      child: _isSavingPreferences
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text('Salvează preferințe'),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showAuthSheet() async {
+    bool localLoginMode = isLoginMode;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, sheetSetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
+              ),
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        localLoginMode ? 'Autentificare' : 'Creează cont',
+                        style: const TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: const InputDecoration(
+                          labelText: 'Email',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _passwordController,
+                        obscureText: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Parolă',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      if (localLoginMode) ...[
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: _sendPasswordReset,
+                            child: const Text('Ai uitat parola?'),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _isProcessing
+                              ? null
+                              : () async {
+                                  setState(() {
+                                    isLoginMode = localLoginMode;
+                                  });
+                                  await _handleFormSubmit();
+                                  if (mounted &&
+                                      ModalRoute.of(sheetContext)?.isCurrent ==
+                                          true) {
+                                    Navigator.of(sheetContext).pop();
+                                  }
+                                },
+                          child: _isProcessing
+                              ? const SizedBox(
+                                  height: 18,
+                                  width: 18,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : Text(localLoginMode
+                                  ? 'Loghează-te'
+                                  : 'Creează cont'),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Center(
+                        child: TextButton(
+                          onPressed: _isProcessing
+                              ? null
+                              : () {
+                                  sheetSetState(() {
+                                    localLoginMode = !localLoginMode;
+                                  });
+                                  if (mounted) {
+                                    setState(() {
+                                      isLoginMode = localLoginMode;
+                                    });
+                                  }
+                                },
+                          child: Text(localLoginMode
+                              ? 'Nu ai cont? Creează cont'
+                              : 'Ai deja cont? Loghează-te'),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    const backgroundColor = Color(0xFFFBFBFB);
+    const panelColor = Color(0xFFFFFAF0);
+    const primaryTextColor = Color(0xFF2C3E50);
+    const secondaryTextColor = Color(0xFF7F8C8D);
+    const accentColor = Color(0xFFC0392B);
+
     return Scaffold(
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        title: const Text('Contul Meu'),
+        backgroundColor: backgroundColor,
+        elevation: 0,
+        title: const Text(
+          'Contul Meu',
+          style:
+              TextStyle(color: primaryTextColor, fontWeight: FontWeight.w700),
+        ),
         centerTitle: true,
+        iconTheme: const IconThemeData(color: primaryTextColor),
       ),
       body: SafeArea(
         child: StreamBuilder<User?>(
@@ -353,227 +638,263 @@ class _AccountTabState extends State<AccountTab> {
             final uid = user?.uid ?? 'necunoscut';
             final email = user?.email ?? '';
 
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Card(
-                    elevation: 1,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            isAnonymous ? 'Cont Anonim' : 'Cont Legat',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: isAnonymous ? Colors.orange : Colors.teal,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            isAnonymous
-                                ? 'Momentan ești un utilizator anonim. Pentru siguranța datelor, creează cont.'
-                                : 'Cont securizat cu email',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey.shade700,
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          Row(
-                            children: [
-                              const Icon(Icons.account_circle_outlined,
-                                  color: Colors.grey),
-                              const SizedBox(width: 8),
-                              Text(
-                                'UID: ${_shortId(uid)}',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFFFCF7), Color(0xFFF6F4EF)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
+                    color: panelColor,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.08),
+                        blurRadius: 18,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 24),
-                  if (!isAnonymous) ...[
-                    TextField(
-                      controller: _nameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Numele tău',
-                        border: OutlineInputBorder(),
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    children: [
+                      Container(
+                        height: 60,
+                        width: 60,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.08),
+                              blurRadius: 10,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: const Center(
+                          child: Icon(
+                            Icons.person_outline,
+                            color: Color(0xFF7F8C8D),
+                            size: 30,
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _isProcessing ? null : _saveDisplayName,
-                        child: const Text('Salvează numele'),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Card(
-                      elevation: 1,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16)),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
+                      const SizedBox(width: 18),
+                      Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              children: const [
-                                Icon(Icons.restaurant_menu_rounded,
-                                    color: Colors.teal),
-                                SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    'Preferințe culinare / Dietă',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            TextField(
-                              controller: _dietaryController,
-                              decoration: const InputDecoration(
-                                hintText:
-                                    'Ex: Paleo, Vegan, Fără gluten, Halal, Adventist...',
-                                border: OutlineInputBorder(),
-                                isDense: true,
+                            Text(
+                              isAnonymous ? 'Cont Anonim' : 'Cont Legat',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: primaryTextColor,
                               ),
                             ),
-                            const SizedBox(height: 12),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton(
-                                onPressed: _isSavingPreferences
-                                    ? null
-                                    : _saveDietaryPreferences,
-                                child: _isSavingPreferences
-                                    ? const SizedBox(
-                                        height: 18,
-                                        width: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      )
-                                    : const Text('Salvează preferințe'),
+                            const SizedBox(height: 6),
+                            Text(
+                              isAnonymous
+                                  ? 'Momentan ești un utilizator anonim. Pentru siguranța datelor, creează cont.'
+                                  : 'Cont securizat cu email',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: secondaryTextColor,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            Text(
+                              'UID: ${_shortId(uid)}',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: secondaryTextColor,
                               ),
                             ),
                           ],
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                  if (isAnonymous) ...[
-                    Text(
-                      isLoginMode
-                          ? 'Ai deja cont? Autentifică-te pentru a accesa gospodăria.'
-                          : 'Momentan ești un utilizator anonim. Pentru siguranța datelor, creează cont.',
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(
-                        labelText: 'Email',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _passwordController,
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Parolă',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    if (isLoginMode) ...[
-                      const SizedBox(height: 8),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: _sendPasswordReset,
-                          child: const Text('Ai uitat parola?'),
-                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 14,
+                        offset: const Offset(0, 8),
                       ),
                     ],
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _isProcessing ? null : _handleFormSubmit,
-                        child: _isProcessing
-                            ? const SizedBox(
-                                height: 18,
-                                width: 18,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : Text(
-                                isLoginMode ? 'Loghează-te' : 'Creează cont'),
+                  ),
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 22, 20, 8),
+                        child: Text(
+                          'Profil',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: primaryTextColor,
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    Center(
-                      child: TextButton(
-                        onPressed: _isProcessing
-                            ? null
-                            : () {
-                                setState(() {
-                                  isLoginMode = !isLoginMode;
-                                });
-                              },
-                        child: Text(isLoginMode
-                            ? 'Nu ai cont? Creează cont'
-                            : 'Ai deja cont? Loghează-te'),
+                      const Divider(height: 0),
+                      ListTile(
+                        leading: const Icon(Icons.person_outline,
+                            color: secondaryTextColor),
+                        title: const Text(
+                          'Numele tău',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: primaryTextColor,
+                          ),
+                        ),
+                        subtitle: Text(
+                          _nameController.text.isNotEmpty
+                              ? _nameController.text
+                              : 'Setează un nume',
+                          style: const TextStyle(color: secondaryTextColor),
+                        ),
+                        trailing: const Icon(Icons.chevron_right,
+                            color: secondaryTextColor),
+                        onTap: _showEditNameSheet,
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 20),
                       ),
-                    ),
-                  ] else ...[
-                    Text(
-                      'Cont securizat cu emailul: $email',
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _isProcessing ? null : _signOutAndAnonymous,
-                        child: _isProcessing
-                            ? const SizedBox(
-                                height: 18,
-                                width: 18,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Text('Sign Out'),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 14,
+                        offset: const Offset(0, 8),
                       ),
-                    ),
-                  ],
-                ],
-              ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 22, 20, 8),
+                        child: Text(
+                          'Preferințe',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: primaryTextColor,
+                          ),
+                        ),
+                      ),
+                      const Divider(height: 0),
+                      ListTile(
+                        leading: const Icon(Icons.restaurant_menu_rounded,
+                            color: secondaryTextColor),
+                        title: const Text(
+                          'Preferințe culinare / Dietă',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: primaryTextColor,
+                          ),
+                        ),
+                        subtitle: Text(
+                          _dietaryController.text.isNotEmpty
+                              ? _dietaryController.text
+                              : 'Adaugă preferințe culinare',
+                          style: const TextStyle(color: secondaryTextColor),
+                        ),
+                        trailing: const Icon(Icons.chevron_right,
+                            color: secondaryTextColor),
+                        onTap: _showEditDietSheet,
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 20),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 14,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 22, 20, 8),
+                        child: Text(
+                          'Securitate & Cont',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: primaryTextColor,
+                          ),
+                        ),
+                      ),
+                      const Divider(height: 0),
+                      if (isAnonymous) ...[
+                        ListTile(
+                          leading: const Icon(Icons.login,
+                              color: secondaryTextColor),
+                          title: const Text(
+                            'Autentificare / Creare Cont',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: primaryTextColor,
+                            ),
+                          ),
+                          subtitle: const Text(
+                            'Convertește contul anonim într-un cont complet.',
+                            style: TextStyle(color: secondaryTextColor),
+                          ),
+                          trailing: const Icon(Icons.chevron_right,
+                              color: secondaryTextColor),
+                          onTap: _showAuthSheet,
+                          contentPadding:
+                              const EdgeInsets.symmetric(horizontal: 20),
+                        ),
+                      ] else ...[
+                        ListTile(
+                          leading: const Icon(Icons.logout, color: accentColor),
+                          title: const Text(
+                            'Deconectare (Sign Out)',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: accentColor,
+                            ),
+                          ),
+                          subtitle: Text(
+                            'Email: $email',
+                            style: const TextStyle(color: secondaryTextColor),
+                          ),
+                          onTap: _signOutAndAnonymous,
+                          contentPadding:
+                              const EdgeInsets.symmetric(horizontal: 20),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
             );
           },
         ),
