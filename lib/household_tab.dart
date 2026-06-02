@@ -528,62 +528,84 @@ class _HouseholdTabState extends State<HouseholdTab> {
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       isScrollControlled: true,
       builder: (sheetContext) {
-        return SingleChildScrollView(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
-            left: 20,
-            right: 20,
-            top: 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
-                      blurRadius: 18,
-                      offset: const Offset(0, 8),
+        String? localErrorMessage;
+        return StatefulBuilder(
+          builder: (context, sheetSetState) {
+            return SingleChildScrollView(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+                left: 20,
+                right: 20,
+                top: 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.08),
+                          blurRadius: 18,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                padding: const EdgeInsets.all(20),
-                child: QrImageView(
-                  data: widget.householdId,
-                  version: QrVersions.auto,
-                  size: 260,
-                  backgroundColor: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 18),
-              const Text(
-                'Trimite acest cod către membri pentru a-i invita în gospodăria ta.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Colors.black54),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.qr_code_scanner),
-                  label: const Text('Scanează un cod'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    padding: const EdgeInsets.all(20),
+                    child: QrImageView(
+                      data: widget.householdId,
+                      version: QrVersions.auto,
+                      size: 260,
+                      backgroundColor: Colors.white,
+                    ),
                   ),
-                  onPressed: () => _scanHousehold(sheetContext),
-                ),
+                  const SizedBox(height: 18),
+                  const Text(
+                    'Trimite acest cod către membri pentru a-i invita în gospodăria ta.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 16, color: Colors.black54),
+                  ),
+                  const SizedBox(height: 24),
+                  if (localErrorMessage != null) ...[
+                    Text(
+                      localErrorMessage!,
+                      style: const TextStyle(
+                          color: Colors.red, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.qr_code_scanner),
+                      label: const Text(
+                          'Scanează QR pentru a te alătura unei gospodării'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      onPressed: () async {
+                        final errorMessage = await _scanHousehold(sheetContext);
+                        if (errorMessage != null) {
+                          sheetSetState(() {
+                            localErrorMessage = errorMessage;
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
   }
 
-  Future<void> _scanHousehold(BuildContext context) async {
+  Future<String?> _scanHousehold(BuildContext context) async {
     final String? scannedId = await Navigator.push(
       context,
       MaterialPageRoute(
@@ -591,23 +613,14 @@ class _HouseholdTabState extends State<HouseholdTab> {
       ),
     );
 
-    if (scannedId == null) return;
+    if (scannedId == null) return null;
 
     if (!_isValidHouseholdId(scannedId)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content:
-              Text('Cod invalid. Te rog scanează un QR de gospodărie valid.'),
-        ),
-      );
-      return;
+      return 'Cod invalid. Te rog scanează un QR de gospodărie valid.';
     }
 
     if (scannedId == widget.householdId) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ești deja în această gospodărie!')),
-      );
-      return;
+      return 'Ești deja în această gospodărie!';
     }
 
     final currentInventory = await FirebaseFirestore.instance
@@ -879,19 +892,10 @@ class _HouseholdTabState extends State<HouseholdTab> {
                           ),
                         ),
                       ),
-                      TextButton.icon(
-                        style: TextButton.styleFrom(
-                          foregroundColor: Colors.black87,
-                          overlayColor:
-                              const Color(0xFFF25C05).withOpacity(0.1),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          backgroundColor: Colors.white.withOpacity(0.85),
-                        ),
+                      IconButton(
                         icon: const Icon(Icons.qr_code),
-                        label: const Text('Invită'),
                         onPressed: _showInviteSheet,
+                        tooltip: 'Invită',
                       ),
                       IconButton(
                         icon: const Icon(Icons.settings_rounded),
