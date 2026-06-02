@@ -67,7 +67,7 @@ async function run() {
       };
 
       try {
-        const response = await messaging.sendMulticast(message);
+        const response = await messaging.sendEachForMulticast(message);
         console.log(`✅ Notificare trimisă pentru ${household.name}: ${response.successCount} primite.`);
       } catch (error) {
         console.error(`❌ Eroare la trimitere pentru ${household.name}:`, error);
