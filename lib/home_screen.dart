@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'account_tab.dart';
@@ -23,6 +24,27 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _householdId = widget.householdId;
+    _setupNotifications();
+  }
+
+  Future<void> _setupNotifications() async {
+    final messaging = FirebaseMessaging.instance;
+    final settings = await messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+      final token = await messaging.getToken();
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null && token != null) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUser.uid)
+            .set({'fcmToken': token}, SetOptions(merge: true));
+      }
+    }
   }
 
   Future<void> _updateHouseholdId(String newHouseholdId) async {

@@ -1,0 +1,28 @@
+name: Daily Expiry Notifications
+
+on:
+  schedule:
+    # Ruleaza zilnic la ora 06:00 UTC (care înseamnă ora 09:00 dimineața în România, ora de vară)
+    - cron: '0 6 * * *'
+  workflow_dispatch: # Ne permite sa pornim robotul si manual dintr-un buton cand vrem noi sa testam
+
+jobs:
+  check-and-notify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Firebase Admin SDK
+        run: npm install firebase-admin
+
+      - name: Run Expiry Checker
+        env:
+          FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+        run: node check_expiry.js
