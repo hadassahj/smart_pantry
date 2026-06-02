@@ -59,12 +59,15 @@ async function run() {
     // 5. Trimitem notificarea dacă am găsit produse
     if (expiringItems.length > 0) {
       const message = {
-        notification: {
-          title: `⚠️ Alerte expirare în ${household.name}`,
-          body: `Ai ${expiringItems.length} produse care expiră curând: ${expiringItems.slice(0, 3).join(', ')}${expiringItems.length > 3 ? '...' : '.'}`
-        },
-        tokens: tokensToSend,
-      };
+      notification: {
+        title: `⚠️ Alerte expirare în ${household.name}`,
+        body: `Ai ${expiringItems.length} produse care expiră curând...`
+      },
+      android: {
+        priority: 'high',
+      },
+      tokens: tokensToSend,
+    };
 
       try {
         const response = await messaging.sendEachForMulticast(message);
