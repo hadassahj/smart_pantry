@@ -124,188 +124,233 @@ class _PantryTabState extends State<PantryTab> {
   // --- NOU: Funcția care arată detaliile loturilor ---
   void _showBatchDetails(
       BuildContext context, String docId, Map<String, dynamic> productData) {
-    String currentName = productData['name'] ?? 'Produs';
-    final List<dynamic> batches = List.from(productData['batches'] ?? []);
-    final sheetContext = context;
+    final String currentName = productData['name'] as String? ?? 'Produs';
+    final int totalQuantity = productData['totalQuantity'] as int? ?? 0;
+    final String unitLabel =
+        (productData['unit'] as String?)?.trim().isNotEmpty == true
+            ? productData['unit'] as String
+            : 'unități';
+    final List<dynamic> batches =
+        List.from(productData['batches'] as List<dynamic>? ?? []);
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent, // Important pentru colțuri rotunjite
+      backgroundColor: Colors.transparent,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
+      ),
       builder: (context) {
-        final sortedBatches = List.from(batches)
-          ..sort((a, b) => (a['expiryDate'] as Timestamp)
-              .compareTo(b['expiryDate'] as Timestamp));
+        final Map<String, Map<String, dynamic>> normalizedMap = {};
+        for (final rawBatch in batches.whereType<Map<String, dynamic>>()) {
+          final int quantity = rawBatch['quantity'] as int? ?? 0;
+          if (quantity <= 0) continue;
 
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 20.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Linie de design sus
-              Center(
-                child: Container(
-                  width: 50,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(10),
+          DateTime? expiry;
+          final expiryValue = rawBatch['expiryDate'];
+          if (expiryValue is Timestamp) {
+            expiry = expiryValue.toDate();
+          } else if (expiryValue is DateTime) {
+            expiry = expiryValue;
+          }
+
+          final String key = expiry != null
+              ? '${expiry.year}-${expiry.month.toString().padLeft(2, '0')}-${expiry.day.toString().padLeft(2, '0')}'
+              : 'no-date';
+          final Timestamp? normalizedExpiry = expiry != null
+              ? Timestamp.fromDate(
+                  DateTime(expiry.year, expiry.month, expiry.day))
+              : null;
+
+          if (normalizedMap.containsKey(key)) {
+            normalizedMap[key]!['quantity'] =
+                (normalizedMap[key]!['quantity'] as int? ?? 0) + quantity;
+          } else {
+            final batchCopy = Map<String, dynamic>.from(rawBatch);
+            batchCopy['quantity'] = quantity;
+            batchCopy['expiryDate'] = normalizedExpiry;
+            normalizedMap[key] = batchCopy;
+          }
+        }
+
+        final displayBatches = normalizedMap.values.toList();
+        displayBatches.sort((a, b) {
+          final aExpiry = a['expiryDate'] as Timestamp?;
+          final bExpiry = b['expiryDate'] as Timestamp?;
+          if (aExpiry == null && bExpiry == null) return 0;
+          if (aExpiry == null) return 1;
+          if (bExpiry == null) return -1;
+          return aExpiry.compareTo(bExpiry);
+        });
+
+        final Timestamp? rootExpiryDate =
+            productData['expiryDate'] as Timestamp?;
+        final bool hasBatches = displayBatches.isNotEmpty;
+
+        return SizedBox(
+          height: MediaQuery.of(context).size.height * 0.78,
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 50,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 24),
-
-              // Nume produs și buton editare
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      currentName,
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.black87,
-                        letterSpacing: -0.5,
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        currentName,
+                        style: const TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.black87,
+                          letterSpacing: -0.5,
+                        ),
                       ),
                     ),
-                  ),
-                  IconButton(
-                    style: IconButton.styleFrom(
-                      backgroundColor: const Color(0xFFFFD54F).withOpacity(0.3),
-                      padding: const EdgeInsets.all(12),
+                    Text(
+                      '$totalQuantity $unitLabel',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFFF25C05),
+                      ),
                     ),
-                    icon: const Icon(Icons.edit_rounded,
-                        color: Color(0xFFF25C05)),
-                    onPressed: () {
-                      final controller =
-                          TextEditingController(text: currentName);
-                      showDialog(
-                        context: context,
-                        builder: (context) {
-                          return AlertDialog(
-                            title: const Text('Redenumește produsul'),
-                            content: TextField(
-                              controller: controller,
-                              decoration: const InputDecoration(
-                                labelText: 'Nume produs',
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: hasBatches
+                      ? ListView.separated(
+                          itemCount: displayBatches.length,
+                          separatorBuilder: (context, index) => const Divider(),
+                          itemBuilder: (context, index) {
+                            final batch = displayBatches[index];
+                            final batchQuantity =
+                                batch['quantity'] as int? ?? 0;
+                            final expiryTimestamp =
+                                batch['expiryDate'] as Timestamp?;
+                            String expiryText = 'Fără dată';
+                            Color expiryColor = Colors.black54;
+
+                            if (expiryTimestamp != null) {
+                              final expiryDate = expiryTimestamp.toDate();
+                              final now = DateTime.now();
+                              final today =
+                                  DateTime(now.year, now.month, now.day);
+                              final expiryDay = DateTime(
+                                expiryDate.year,
+                                expiryDate.month,
+                                expiryDate.day,
+                              );
+                              final daysLeft =
+                                  expiryDay.difference(today).inDays;
+
+                              if (daysLeft < 0) {
+                                expiryText = 'Expirat!';
+                                expiryColor = const Color(0xFFEF476F);
+                              } else if (daysLeft == 0) {
+                                expiryText = 'Expiră AZI';
+                                expiryColor = const Color(0xFFF25C05);
+                              } else if (daysLeft <= 3) {
+                                expiryText = '~$daysLeft zile';
+                                expiryColor = const Color(0xFFF25C05);
+                              } else {
+                                expiryText = '~$daysLeft zile';
+                                expiryColor = Colors.green.shade700;
+                              }
+                            }
+
+                            return ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 0, vertical: 4),
+                              title: Text(
+                                '$batchQuantity $unitLabel',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.of(context).pop(),
-                                child: const Text('Anulează'),
+                              subtitle: Text(
+                                expiryText,
+                                style: TextStyle(color: expiryColor),
                               ),
-                              ElevatedButton(
-                                onPressed: () async {
-                                  final newName = controller.text.trim();
-                                  if (newName.isEmpty) return;
-                                  await FirebaseFirestore.instance
-                                      .collection('households')
-                                      .doc(widget.householdId)
-                                      .collection('inventory')
-                                      .doc(docId)
-                                      .update({'name': newName});
-                                  currentName = newName;
-                                  Navigator.of(context).pop();
-                                },
-                                child: const Text('Salvează'),
+                              trailing: expiryTimestamp != null
+                                  ? Text(
+                                      DateFormat('dd MMM yyyy')
+                                          .format(expiryTimestamp.toDate()),
+                                      style: const TextStyle(
+                                          color: Colors.black87),
+                                    )
+                                  : null,
+                            );
+                          },
+                        )
+                      : Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                '$totalQuantity $unitLabel',
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                rootExpiryDate != null
+                                    ? DateFormat('dd MMM yyyy')
+                                        .format(rootExpiryDate.toDate())
+                                    : 'Fără dată',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.black54,
+                                ),
                               ),
                             ],
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // Card informativ pentru stoc și expirare
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8F9FA),
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Builder(builder: (context) {
-                  final displayBatches =
-                      sortedBatches.where((b) => b['quantity'] > 0).toList();
-                  final totalUnits = displayBatches.fold<int>(
-                      0, (sum, b) => sum + (b['quantity'] as int));
-
-                  return Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Stoc disponibil',
-                              style: TextStyle(
-                                  color: Colors.black54,
-                                  fontWeight: FontWeight.bold)),
-                          Text('$totalUnits unități',
-                              style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w900,
-                                  color: Color(0xFFF25C05))),
-                        ],
-                      ),
-                      const Divider(height: 30),
-                      if (displayBatches.isNotEmpty) ...[
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text('Prima expirare',
-                                style: TextStyle(
-                                    color: Colors.black54,
-                                    fontWeight: FontWeight.bold)),
-                            Text(
-                              DateFormat('dd MMM yyyy').format((displayBatches
-                                      .first['expiryDate'] as Timestamp)
-                                  .toDate()),
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87),
-                            ),
-                          ],
+                          ),
                         ),
-                      ]
-                    ],
-                  );
-                }),
-              ),
-
-              const SizedBox(height: 32),
-
-              // Buton de Ștergere tip "Chunky"
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFEF476F).withOpacity(0.1),
-                  foregroundColor: const Color(0xFFEF476F),
-                  elevation: 0,
-                  minimumSize: const Size.fromHeight(65),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24)),
                 ),
-                onPressed: () async {
-                  final confirmed = await _confirmDelete();
-                  if (!confirmed) return;
-                  await _markProductConsumed(docId, productData);
-                  Navigator.pop(context);
-                  Navigator.pop(context);
-                },
-                icon: const Icon(Icons.delete_outline_rounded, size: 28),
-                label: const Text('Elimină din cămară',
-                    style:
-                        TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
-              ),
-              const SizedBox(height: 16),
-            ],
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFEF476F).withOpacity(0.1),
+                    foregroundColor: const Color(0xFFEF476F),
+                    elevation: 0,
+                    minimumSize: const Size.fromHeight(60),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24)),
+                  ),
+                  onPressed: () async {
+                    final confirmed = await _confirmDelete();
+                    if (!confirmed) return;
+                    await _markProductConsumed(docId, productData);
+                    Navigator.of(context).pop();
+                  },
+                  icon: const Icon(Icons.delete_outline_rounded, size: 26),
+                  label: const Text('Elimină din cămară',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
           ),
         );
       },
@@ -333,17 +378,35 @@ class _PantryTabState extends State<PantryTab> {
             Container(
               width: double.infinity,
               color: const Color(0xFFFFD54F),
-              child: const Padding(
-                padding: EdgeInsets.only(left: 24.0, top: 20.0, bottom: 24.0),
-                child: Text(
-                  'Cămara Ta',
-                  style: TextStyle(
-                    fontSize: 36,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.black87,
-                    letterSpacing: -1.5,
-                  ),
-                ),
+              child: StreamBuilder<DocumentSnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('households')
+                    .doc(widget.householdId)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  final data = snapshot.data?.data() as Map<String, dynamic>?;
+                  final householdName =
+                      (data?['name'] as String?)?.trim() ?? 'Household';
+                  final titleText =
+                      snapshot.connectionState == ConnectionState.waiting &&
+                              !snapshot.hasData
+                          ? 'Pantry'
+                          : "$householdName's Pantry";
+
+                  return Padding(
+                    padding: const EdgeInsets.only(
+                        left: 24.0, top: 20.0, bottom: 24.0),
+                    child: Text(
+                      titleText,
+                      style: const TextStyle(
+                        fontSize: 36,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.black87,
+                        letterSpacing: -1.5,
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
 

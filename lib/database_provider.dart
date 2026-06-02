@@ -13,45 +13,56 @@ final householdProvider = FutureProvider<String?>((ref) async {
   String? householdId = prefs.getString('pantry_household_id');
 
   if (householdId != null) {
-    final householdDoc =
-        await db.collection('households').doc(householdId).get();
-    if (!householdDoc.exists ||
-        !(List.from(householdDoc.data()?['members'] ?? [])
-            .contains(user.uid))) {
-      householdId = null;
+    try {
+      final householdDoc = await db
+          .collection('households')
+          .doc(householdId)
+          .get(GetOptions(source: Source.serverAndCache));
+      if (!householdDoc.exists ||
+          !(List.from(householdDoc.data()?['members'] ?? [])
+              .contains(user.uid))) {
+        householdId = null;
+      }
+    } catch (_) {
+      // Offline or cache miss; keep the locally cached householdId if present.
     }
   }
 
   final userRef = db.collection('users').doc(user.uid);
-  final userDoc = await userRef.get();
-  final existingHouseholdId = userDoc.data()?['householdId'] as String?;
-
-  if (existingHouseholdId != null && existingHouseholdId.isNotEmpty) {
-    householdId = existingHouseholdId;
+  try {
+    final userDoc =
+        await userRef.get(GetOptions(source: Source.serverAndCache));
+    final existingHouseholdId = userDoc.data()?['householdId'] as String?;
+    if (existingHouseholdId != null && existingHouseholdId.isNotEmpty) {
+      householdId = existingHouseholdId;
+    }
+  } catch (_) {
+    // Offline or cache miss; preserve current householdId.
   }
 
   if (householdId == null) {
     final newHouseholdRef = db.collection('households').doc();
-    await newHouseholdRef.set({
+    newHouseholdRef.set({
       'createdAt': FieldValue.serverTimestamp(),
       'members': [user.uid],
       'ownerId': user.uid,
+      'name': 'Household',
     });
     householdId = newHouseholdRef.id;
 
-    await userRef.set({
+    userRef.set({
       'householdId': householdId,
       'role': 'admin',
       'createdAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   } else {
-    await db.collection('households').doc(householdId).set({
+    db.collection('households').doc(householdId).set({
       'members': FieldValue.arrayUnion([user.uid]),
     }, SetOptions(merge: true));
-    await userRef.set({'householdId': householdId}, SetOptions(merge: true));
+    userRef.set({'householdId': householdId}, SetOptions(merge: true));
   }
 
-  await prefs.setString('pantry_household_id', householdId);
+  prefs.setString('pantry_household_id', householdId);
 
   return householdId;
 });

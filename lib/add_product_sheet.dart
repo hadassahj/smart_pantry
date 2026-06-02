@@ -42,6 +42,47 @@ class _AddProductSheetState extends State<AddProductSheet> {
     }
   }
 
+  DateTime _normalizeDate(DateTime date) {
+    return DateTime(date.year, date.month, date.day);
+  }
+
+  String _dateKey(DateTime? date) {
+    if (date == null) return 'no-date';
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
+
+  List<Map<String, dynamic>> _consolidateBatches(List<dynamic> rawBatches) {
+    final Map<String, Map<String, dynamic>> normalized = {};
+    for (final rawBatch in rawBatches.whereType<Map<String, dynamic>>()) {
+      final int quantity = rawBatch['quantity'] as int? ?? 0;
+      if (quantity <= 0) continue;
+
+      DateTime? expiry;
+      final expiryValue = rawBatch['expiryDate'];
+      if (expiryValue is Timestamp) {
+        expiry = expiryValue.toDate();
+      } else if (expiryValue is DateTime) {
+        expiry = expiryValue;
+      }
+
+      final String key =
+          _dateKey(expiry != null ? _normalizeDate(expiry) : null);
+      final Timestamp? normalizedExpiry =
+          expiry != null ? Timestamp.fromDate(_normalizeDate(expiry)) : null;
+
+      if (normalized.containsKey(key)) {
+        normalized[key]!['quantity'] =
+            (normalized[key]!['quantity'] as int? ?? 0) + quantity;
+      } else {
+        final batchCopy = Map<String, dynamic>.from(rawBatch);
+        batchCopy['quantity'] = quantity;
+        batchCopy['expiryDate'] = normalizedExpiry;
+        normalized[key] = batchCopy;
+      }
+    }
+    return normalized.values.toList();
+  }
+
   Future<void> _saveProduct() async {
     final productName = _nameController.text.trim();
     if (productName.isEmpty) return;
@@ -59,36 +100,62 @@ class _AddProductSheetState extends State<AddProductSheet> {
           .limit(1)
           .get();
 
-      // Creăm noul lot (batch)
-      final newBatch = {
-        'quantity': _quantity,
-        'expiryDate': Timestamp.fromDate(_selectedExpiryDate),
-        'addedAt': Timestamp.now(), // <--- AICI AM FĂCUT MODIFICAREA
-        'source': 'manual'
-      };
+      final Timestamp normalizedExpiry =
+          Timestamp.fromDate(_normalizeDate(_selectedExpiryDate));
+      final String newBatchKey = _dateKey(_selectedExpiryDate);
 
       if (querySnapshot.docs.isNotEmpty) {
-        // PRODUSUL EXISTĂ: Adăugăm lotul la lista existentă
         final doc = querySnapshot.docs.first;
         final docId = doc.id;
-        final currentTotal = doc.data()['totalQuantity'] ?? 0;
+        final currentTotal = doc.data()['totalQuantity'] as int? ?? 0;
+        final currentBatches = List<dynamic>.from(doc.data()['batches'] ?? []);
+        final consolidatedBatches = _consolidateBatches(currentBatches);
 
-        List<dynamic> currentBatches = List.from(doc.data()['batches'] ?? []);
-        currentBatches.add(newBatch);
+        var matched = false;
+        for (final batch in consolidatedBatches) {
+          final expiryValue = batch['expiryDate'];
+          DateTime? expiry;
+          if (expiryValue is Timestamp) {
+            expiry = expiryValue.toDate();
+          } else if (expiryValue is DateTime) {
+            expiry = expiryValue;
+          }
+          if (_dateKey(expiry != null ? _normalizeDate(expiry) : null) ==
+              newBatchKey) {
+            batch['quantity'] = (batch['quantity'] as int? ?? 0) + _quantity;
+            matched = true;
+            break;
+          }
+        }
+
+        if (!matched) {
+          consolidatedBatches.add({
+            'quantity': _quantity,
+            'expiryDate': normalizedExpiry,
+            'addedAt': Timestamp.now(),
+            'source': 'manual',
+          });
+        }
 
         await inventoryRef.doc(docId).update({
           'totalQuantity': currentTotal + _quantity,
-          'batches': currentBatches,
+          'batches': consolidatedBatches,
           'isConsumed': false,
           'updatedAt': FieldValue.serverTimestamp(),
         });
       } else {
-        // PRODUS NOU
         await inventoryRef.add({
           'name': productName,
           'totalQuantity': _quantity,
           'isConsumed': false,
-          'batches': [newBatch], // Array cu un singur element momentan
+          'batches': [
+            {
+              'quantity': _quantity,
+              'expiryDate': normalizedExpiry,
+              'addedAt': Timestamp.now(),
+              'source': 'manual',
+            }
+          ],
           'createdAt': FieldValue.serverTimestamp(),
         });
       }

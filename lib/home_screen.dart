@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'account_tab.dart';
 import 'ai_assistant_tab.dart';
 import 'household_tab.dart';
-import 'pantry_tab.dart'; // Importăm noul tab
+import 'pantry_tab.dart';
 
 class HomeScreen extends StatefulWidget {
   final String householdId;
@@ -55,6 +55,11 @@ class _HomeScreenState extends State<HomeScreen> {
         householdId: _householdId,
         onHouseholdChanged: _updateHouseholdId,
         onGoToAccount: () {
+          setState(() {
+            _currentIndex = 3;
+          });
+        },
+        onSwitchToAccountTab: () {
           setState(() {
             _currentIndex = 3;
           });

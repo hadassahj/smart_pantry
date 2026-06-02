@@ -43,6 +43,7 @@ class _AiAssistantTabState extends State<AiAssistantTab> {
 You will receive the user's current inventory. Based on it, suggest recipes or acknowledge consumed items. 
 Keep answers concise, friendly, and structured using Markdown (bullet points, bold text). 
 Always reply in the exact language the user used in their last message. Romanian is the default. 
+CRITICAL RULE: You must ALWAYS respond in the exact same language that the user uses in their prompt. If the user writes in English, your entire response MUST be in English. If the user writes in French, respond in French. Do not default to Romanian unless the user's prompt is in Romanian.
 When the user asks what is in their pantry, you must list absolutely every item provided in the context, including non-culinary or placeholder names like 'test'. Do not filter out any items based on your own assumptions. 
 You must strictly respect the user's culinary/dietary preferences. Additionally, prioritize creating recipes that use the items at the top of the pantry list first, as they are closest to expiring.'''),
     );
@@ -139,7 +140,19 @@ ${pantryItems.join('\n')}
       final response = await _model.generateContent([Content.text(prompt)]);
       return response.text ?? 'Nu am putut formula un răspuns.';
     } catch (e) {
-      return 'Eroare tehnică: $e';
+      String errorMsg = 'A apărut o eroare. Te rog încearcă din nou.';
+      final errorStr = e.toString().toLowerCase();
+
+      if (errorStr.contains('network') ||
+          errorStr.contains('socket') ||
+          errorStr.contains('host')) {
+        errorMsg =
+            'Nu ai conexiune la internet. Am nevoie de rețea pentru a gândi rețete noi!';
+      } else if (errorStr.contains('api key') ||
+          errorStr.contains('unregistered caller')) {
+        errorMsg = 'Eroare de sistem: Cheia API lipsește sau este invalidă.';
+      }
+      return errorMsg;
     }
   }
 

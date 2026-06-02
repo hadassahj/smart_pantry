@@ -8,12 +8,14 @@ class HouseholdTab extends StatefulWidget {
   final String householdId;
   final void Function(String) onHouseholdChanged;
   final VoidCallback? onGoToAccount;
+  final VoidCallback? onSwitchToAccountTab;
 
   const HouseholdTab({
     super.key,
     required this.householdId,
     required this.onHouseholdChanged,
     this.onGoToAccount,
+    this.onSwitchToAccountTab,
   });
 
   @override
@@ -199,6 +201,7 @@ class _HouseholdTabState extends State<HouseholdTab> {
         'createdAt': FieldValue.serverTimestamp(),
         'members': [currentUid],
         'ownerId': currentUid,
+        'name': 'Household',
       });
       await db.collection('users').doc(currentUid).set(
         {'householdId': newHouseholdRef.id},
@@ -774,6 +777,47 @@ class _HouseholdTabState extends State<HouseholdTab> {
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    final isAnonymous = user == null || user.isAnonymous;
+
+    if (isAnonymous) {
+      return Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.lock_outline, size: 80, color: Colors.grey),
+                const SizedBox(height: 20),
+                const Text(
+                  'Acces restricționat',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Pentru a folosi lista de cumpărături și a colabora într-o gospodărie, trebuie să îți creezi un cont gratuit sau să te loghezi.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey, fontSize: 16),
+                ),
+                const SizedBox(height: 30),
+                ElevatedButton(
+                  onPressed: () {
+                    if (widget.onSwitchToAccountTab != null) {
+                      widget.onSwitchToAccountTab!();
+                    } else if (widget.onGoToAccount != null) {
+                      widget.onGoToAccount!();
+                    }
+                  },
+                  child: const Text('Mergi la Cont'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       body: SafeArea(
         child: StreamBuilder<DocumentSnapshot>(

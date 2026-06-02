@@ -36,9 +36,36 @@ class _AccountTabState extends State<AccountTab> {
     return id.length <= 8 ? id : id.substring(0, 8);
   }
 
+  String _getFriendlyAuthError(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'network-request-failed':
+        return 'Nu ai conexiune la internet.';
+      case 'user-not-found':
+        return 'Nu există niciun cont cu acest email.';
+      case 'wrong-password':
+      case 'invalid-credential':
+        return 'Email sau parolă incorectă.';
+      case 'email-already-in-use':
+        return 'Acest email este deja folosit.';
+      case 'weak-password':
+        return 'Parola este prea slabă (minim 6 caractere).';
+      case 'invalid-email':
+        return 'Adresa de email nu este validă.';
+      case 'too-many-requests':
+        return 'Prea multe încercări. Revino mai târziu.';
+      default:
+        return 'A apărut o eroare neașteptată.';
+    }
+  }
+
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.only(bottom: 20, left: 20, right: 20),
+      ),
+    );
   }
 
   Future<void> _loadCurrentName() async {
@@ -91,10 +118,9 @@ class _AccountTabState extends State<AccountTab> {
       await user.updateDisplayName(name);
       if (!mounted) return;
       _showMessage('Numele a fost salvat.');
-      if (mounted && ModalRoute.of(context)?.isCurrent == false) {
-        Navigator.of(context).pop();
+      if (mounted) {
+        setState(() {});
       }
-      setState(() {});
     } catch (_) {
       if (!mounted) return;
       _showMessage('Eroare la salvarea numelui.');
@@ -121,8 +147,8 @@ class _AccountTabState extends State<AccountTab> {
       );
       if (!mounted) return;
       _showMessage('Preferințele culinare au fost salvate.');
-      if (mounted && ModalRoute.of(context)?.isCurrent == false) {
-        Navigator.of(context).pop();
+      if (mounted) {
+        setState(() {});
       }
     } catch (_) {
       if (!mounted) return;
@@ -172,6 +198,7 @@ class _AccountTabState extends State<AccountTab> {
         'createdAt': FieldValue.serverTimestamp(),
         'members': [user.uid],
         'ownerId': user.uid,
+        'name': 'Household',
       });
       householdId = newHouseholdRef.id;
       await userRef.set({
@@ -210,18 +237,13 @@ class _AccountTabState extends State<AccountTab> {
     }
   }
 
-  Future<void> _handleFormSubmit() async {
+  Future<String?> _handleFormSubmit() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
-      _showMessage('Completează email și parolă.');
-      return;
+      return 'Completează email și parolă.';
     }
-
-    setState(() {
-      _isProcessing = true;
-    });
 
     try {
       final String oldHouseholdId = widget.householdId;
@@ -233,23 +255,16 @@ class _AccountTabState extends State<AccountTab> {
             .signInWithEmailAndPassword(email: email, password: password);
         final user = result.user;
         if (user == null) {
-          throw FirebaseAuthException(
-              code: 'unknown', message: 'Nu s-a putut autentifica.');
+          return 'Nu s-a putut autentifica.';
         }
 
         final newHouseholdId = await _ensureHouseholdForCurrentUser(user);
         await _mergeInventory(oldHouseholdId, newHouseholdId, oldItems);
-        if (!mounted) return;
-        _showMessage('Autentificare reușită!');
-        if (mounted && ModalRoute.of(context)?.isCurrent == false) {
-          Navigator.of(context).pop();
-        }
+        return null;
       } else {
         final user = FirebaseAuth.instance.currentUser;
         if (user == null) {
-          if (!mounted) return;
-          _showMessage('Nu există utilizator conectat.');
-          return;
+          return 'Nu există utilizator conectat.';
         }
 
         final credential = EmailAuthProvider.credential(
@@ -258,78 +273,28 @@ class _AccountTabState extends State<AccountTab> {
         );
         await user.linkWithCredential(credential);
         await _ensureHouseholdForCurrentUser(user);
-        if (!mounted) return;
-        _showMessage('Cont creat cu succes!');
-        if (mounted && ModalRoute.of(context)?.isCurrent == false) {
-          Navigator.of(context).pop();
-        }
+        return null;
       }
-
-      if (!mounted) return;
-      setState(() {
-        isLoginMode = false;
-      });
     } on FirebaseAuthException catch (e) {
-      final code = e.code;
-      String message;
-      if (isLoginMode) {
-        if (code == 'user-not-found') {
-          message = 'Utilizator negăsit.';
-        } else if (code == 'wrong-password') {
-          message = 'Parolă incorectă.';
-        } else if (code == 'invalid-email') {
-          message = 'Email invalid.';
-        } else {
-          message = e.message ?? 'Eroare la autentificare.';
-        }
-      } else {
-        if (code == 'email-already-in-use') {
-          message = 'Email-ul este deja folosit. Încearcă alt email.';
-        } else if (code == 'weak-password') {
-          message = 'Parola este prea slabă.';
-        } else if (code == 'invalid-email') {
-          message = 'Email invalid.';
-        } else {
-          message = e.message ?? 'A apărut o eroare la crearea contului.';
-        }
-      }
-      if (!mounted) return;
-      _showMessage(message);
+      return _getFriendlyAuthError(e);
     } catch (_) {
-      if (!mounted) return;
-      _showMessage('A apărut o eroare. Încearcă din nou mai târziu.');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isProcessing = false;
-        });
-      }
+      return 'A apărut o eroare. Încearcă din nou mai târziu.';
     }
   }
 
-  Future<void> _sendPasswordReset() async {
+  Future<String?> _sendPasswordReset() async {
     final email = _emailController.text.trim();
     if (email.isEmpty) {
-      _showMessage('Te rog introdu email-ul pentru resetare.');
-      return;
+      return 'Te rog introdu email-ul pentru resetare.';
     }
 
     try {
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-      if (!mounted) return;
-      _showMessage('Email de resetare trimis!');
+      return null;
     } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
-      if (e.code == 'user-not-found') {
-        _showMessage('Utilizator negăsit.');
-      } else if (e.code == 'invalid-email') {
-        _showMessage('Email invalid.');
-      } else {
-        _showMessage(e.message ?? 'Eroare la trimiterea resetului de parolă.');
-      }
+      return _getFriendlyAuthError(e);
     } catch (_) {
-      if (!mounted) return;
-      _showMessage('A apărut o eroare. Încearcă din nou mai târziu.');
+      return 'A apărut o eroare. Încearcă din nou mai târziu.';
     }
   }
 
@@ -404,7 +369,10 @@ class _AccountTabState extends State<AccountTab> {
                           ? null
                           : () async {
                               await _saveDisplayName();
-                              if (mounted) Navigator.of(sheetContext).pop();
+                              if (context.mounted &&
+                                  Navigator.canPop(context)) {
+                                Navigator.pop(context);
+                              }
                             },
                       child: const Text('Salvează numele'),
                     ),
@@ -460,7 +428,10 @@ class _AccountTabState extends State<AccountTab> {
                           ? null
                           : () async {
                               await _saveDietaryPreferences();
-                              if (mounted) Navigator.of(sheetContext).pop();
+                              if (context.mounted &&
+                                  Navigator.canPop(context)) {
+                                Navigator.pop(context);
+                              }
                             },
                       child: _isSavingPreferences
                           ? const SizedBox(
@@ -486,6 +457,8 @@ class _AccountTabState extends State<AccountTab> {
 
   Future<void> _showAuthSheet() async {
     bool localLoginMode = isLoginMode;
+    String? localErrorMessage;
+    String? localSuccessMessage;
 
     await showModalBottomSheet(
       context: context,
@@ -536,26 +509,82 @@ class _AccountTabState extends State<AccountTab> {
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton(
-                            onPressed: _sendPasswordReset,
+                            onPressed: _isProcessing
+                                ? null
+                                : () async {
+                                    sheetSetState(() {
+                                      _isProcessing = true;
+                                      localErrorMessage = null;
+                                      localSuccessMessage = null;
+                                    });
+
+                                    final resetMessage =
+                                        await _sendPasswordReset();
+
+                                    if (mounted) {
+                                      sheetSetState(() {
+                                        _isProcessing = false;
+                                        if (resetMessage == null) {
+                                          localSuccessMessage =
+                                              'Emailul de resetare a fost trimis!';
+                                        } else {
+                                          localErrorMessage = resetMessage;
+                                        }
+                                      });
+                                    }
+                                  },
                             child: const Text('Ai uitat parola?'),
                           ),
                         ),
                       ],
                       const SizedBox(height: 16),
+                      if (localErrorMessage != null) ...[
+                        Text(
+                          localErrorMessage!,
+                          style: const TextStyle(
+                              color: Colors.red, fontWeight: FontWeight.bold),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      if (localSuccessMessage != null) ...[
+                        Text(
+                          localSuccessMessage!,
+                          style: const TextStyle(
+                              color: Colors.green, fontWeight: FontWeight.bold),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 12),
+                      ],
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
                           onPressed: _isProcessing
                               ? null
                               : () async {
-                                  setState(() {
+                                  final nav = Navigator.of(context,
+                                      rootNavigator: true);
+                                  sheetSetState(() {
+                                    _isProcessing = true;
+                                    localErrorMessage = null;
+                                    localSuccessMessage = null;
                                     isLoginMode = localLoginMode;
                                   });
-                                  await _handleFormSubmit();
-                                  if (mounted &&
-                                      ModalRoute.of(sheetContext)?.isCurrent ==
-                                          true) {
-                                    Navigator.of(sheetContext).pop();
+
+                                  final errorMessage =
+                                      await _handleFormSubmit();
+
+                                  if (errorMessage == null) {
+                                    if (nav.canPop()) {
+                                      nav.pop();
+                                    }
+                                  } else {
+                                    if (mounted) {
+                                      sheetSetState(() {
+                                        _isProcessing = false;
+                                        localErrorMessage = errorMessage;
+                                      });
+                                    }
                                   }
                                 },
                           child: _isProcessing
@@ -581,11 +610,6 @@ class _AccountTabState extends State<AccountTab> {
                                   sheetSetState(() {
                                     localLoginMode = !localLoginMode;
                                   });
-                                  if (mounted) {
-                                    setState(() {
-                                      isLoginMode = localLoginMode;
-                                    });
-                                  }
                                 },
                           child: Text(localLoginMode
                               ? 'Nu ai cont? Creează cont'
