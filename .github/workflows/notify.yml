@@ -3,7 +3,7 @@ name: Daily Expiry Notifications
 on:
   schedule:
     # Ruleaza zilnic la ora 06:00 UTC (care înseamnă ora 09:00 dimineața în România, ora de vară)
-    - cron: '0 6 * * *'
+    - cron: '0 6,15 * * *'
   workflow_dispatch: # Ne permite sa pornim robotul si manual dintr-un buton cand vrem noi sa testam
 
 jobs:
