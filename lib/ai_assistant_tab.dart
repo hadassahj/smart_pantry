@@ -1,8 +1,10 @@
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
-import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:http/http.dart' as http;
 
 class Message {
   final String text;
@@ -22,32 +24,13 @@ class AiAssistantTab extends StatefulWidget {
 class _AiAssistantTabState extends State<AiAssistantTab> {
   final List<Message> _messages = [
     Message(
-      text:
-          'Salut! Sunt asistentul tău culinar. Te pot ajuta cu rețete pe baza cămării tale sau poți să-mi spui ce ai gătit pentru a actualiza stocul.',
+      text: 'Hello! How can I help you manage your pantry today?',
       isUser: false,
     ),
   ];
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  late final GenerativeModel _model;
   bool _isSending = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _model = GenerativeModel(
-      model: 'gemini-3.1-flash-lite',
-      apiKey: const String.fromEnvironment('GEMINI_API_KEY'),
-      systemInstruction: Content.system(
-          '''You are a helpful culinary AI assistant for a smart pantry app. 
-You will receive the user's current inventory. Based on it, suggest recipes or acknowledge consumed items. 
-Keep answers concise, friendly, and structured using Markdown (bullet points, bold text). 
-Always reply in the exact language the user used in their last message. Romanian is the default. 
-CRITICAL RULE: You must ALWAYS respond in the exact same language that the user uses in their prompt. If the user writes in English, your entire response MUST be in English. If the user writes in French, respond in French. Do not default to Romanian unless the user's prompt is in Romanian.
-When the user asks what is in their pantry, you must list absolutely every item provided in the context, including non-culinary or placeholder names like 'test'. Do not filter out any items based on your own assumptions. 
-You must strictly respect the user's culinary/dietary preferences. Additionally, prioritize creating recipes that use the items at the top of the pantry list first, as they are closest to expiring.'''),
-    );
-  }
 
   Future<String> _processMessage(String text) async {
     try {
@@ -57,7 +40,7 @@ You must strictly respect the user's culinary/dietary preferences. Additionally,
           .doc(currentUid)
           .get();
       final preferences = userDoc.data()?['dietaryPreferences'] as String? ??
-          'Nicio preferință specială';
+          'No special preferences';
 
       // Fetch real inventory from Firebase
       final snapshot = await FirebaseFirestore.instance
@@ -80,53 +63,22 @@ You must strictly respect the user's culinary/dietary preferences. Additionally,
       if (activeDocs.isEmpty) {
         final prompt =
             "Context: The user's pantry is currently empty.\n\nUser request: $text";
-        final response = await _model.generateContent([Content.text(prompt)]);
-        return response.text ?? 'Nu am putut formula un răspuns.';
+        return await _queryProxy(prompt);
       }
 
-      // 2. Exact FEFO Sorting using 'expiryDate' on the filtered active items
+      // 2. Exact FEFO Sorting using earliest active batch expiry
       activeDocs.sort((a, b) {
-        final dataA = a.data();
-        final dataB = b.data();
+        final expiryA = _earliestBatchExpiry(a.data());
+        final expiryB = _earliestBatchExpiry(b.data());
 
-        final rawDateA = dataA['expiryDate'];
-        final rawDateB = dataB['expiryDate'];
-
-        if (rawDateA == null && rawDateB == null) return 0;
-        if (rawDateA == null) return 1;
-        if (rawDateB == null) return -1;
-
-        DateTime dateA;
-        DateTime dateB;
-
-        if (rawDateA is Timestamp) {
-          dateA = rawDateA.toDate();
-        } else if (rawDateA is DateTime) {
-          dateA = rawDateA;
-        } else {
-          dateA = DateTime.now().add(const Duration(days: 3650));
-        }
-
-        if (rawDateB is Timestamp) {
-          dateB = rawDateB.toDate();
-        } else if (rawDateB is DateTime) {
-          dateB = rawDateB;
-        } else {
-          dateB = DateTime.now().add(const Duration(days: 3650));
-        }
-
-        return dateA.compareTo(dateB);
+        if (expiryA == null && expiryB == null) return 0;
+        if (expiryA == null) return 1;
+        if (expiryB == null) return -1;
+        return expiryA.compareTo(expiryB);
       });
 
-      // 3. Exact Data Mapping using 'totalQuantity' from active items
       final List<String> pantryItems = activeDocs.map((doc) {
-        final data = doc.data();
-        final name = data['name'] ?? data['nume'] ?? 'Produs necunoscut';
-        final rawQuantity = data['totalQuantity'];
-        final quantity = rawQuantity != null ? rawQuantity.toString() : '0';
-        final unit = data['unit'] ?? data['unitMeasure'] ?? '';
-
-        return "- $name (Cantitate: $quantity $unit)".trim();
+        return _inventoryLineForItem(doc);
       }).toList();
 
       final contextText = """
@@ -137,23 +89,133 @@ ${pantryItems.join('\n')}
 """;
 
       final prompt = "Context: $contextText\n\nUser request: $text";
-      final response = await _model.generateContent([Content.text(prompt)]);
-      return response.text ?? 'Nu am putut formula un răspuns.';
+      return await _queryProxy(prompt);
     } catch (e) {
-      String errorMsg = 'A apărut o eroare. Te rog încearcă din nou.';
+      String errorMsg = 'An error occurred. Please try again.';
       final errorStr = e.toString().toLowerCase();
 
       if (errorStr.contains('network') ||
           errorStr.contains('socket') ||
           errorStr.contains('host')) {
         errorMsg =
-            'Nu ai conexiune la internet. Am nevoie de rețea pentru a gândi rețete noi!';
+            'No internet connection. I need network access to generate recipes.';
       } else if (errorStr.contains('api key') ||
           errorStr.contains('unregistered caller')) {
-        errorMsg = 'Eroare de sistem: Cheia API lipsește sau este invalidă.';
+        errorMsg = 'System error: API key is missing or invalid.';
       }
       return errorMsg;
     }
+  }
+
+  DateTime? _earliestBatchExpiry(Map<String, dynamic> data) {
+    final batches = data['batches'] as List<dynamic>?;
+    if (batches == null || batches.isEmpty) return null;
+
+    DateTime? earliest;
+    for (final rawBatch in batches) {
+      if (rawBatch is! Map) continue;
+      final quantityRaw = rawBatch['quantity'] ?? rawBatch['qty'];
+      final isConsumed =
+          rawBatch['isConsumed'] ?? rawBatch['consumed'] ?? false;
+      final quantity = num.tryParse(quantityRaw?.toString() ?? '') ?? 0;
+      if (quantity <= 0 || isConsumed == true) continue;
+
+      final rawExpiry = rawBatch['expiryDate'];
+      DateTime? expiry;
+      if (rawExpiry is Timestamp) {
+        expiry = rawExpiry.toDate();
+      } else if (rawExpiry is DateTime) {
+        expiry = rawExpiry;
+      }
+      if (expiry == null) continue;
+
+      if (earliest == null || expiry.isBefore(earliest)) {
+        earliest = expiry;
+      }
+    }
+
+    return earliest;
+  }
+
+  String _inventoryLineForItem(QueryDocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    final name = data['name'] ?? data['nume'] ?? 'Produs necunoscut';
+    final batches = data['batches'] as List<dynamic>?;
+    final batchDescriptions = <String>[];
+    var batchIndex = 0;
+
+    if (batches != null) {
+      for (final rawBatch in batches) {
+        if (rawBatch is! Map) continue;
+        final quantityRaw = rawBatch['quantity'] ?? rawBatch['qty'];
+        final isConsumed =
+            rawBatch['isConsumed'] ?? rawBatch['consumed'] ?? false;
+        final quantity = num.tryParse(quantityRaw?.toString() ?? '') ?? 0;
+        if (quantity <= 0 || isConsumed == true) continue;
+
+        final rawExpiry = rawBatch['expiryDate'];
+        DateTime? expiry;
+        if (rawExpiry is Timestamp) {
+          expiry = rawExpiry.toDate();
+        } else if (rawExpiry is DateTime) {
+          expiry = rawExpiry;
+        }
+        if (expiry == null) continue;
+
+        batchIndex += 1;
+        final daysRemaining = expiry.difference(DateTime.now()).inDays;
+        final unitLabel = quantity == 1 ? 'unit' : 'units';
+        batchDescriptions.add(
+          '[Batch $batchIndex: $quantity $unitLabel, expires in $daysRemaining days]',
+        );
+      }
+    }
+
+    final batchText = batchDescriptions.join(' | ');
+    if (batchText.isEmpty) {
+      return '$name: [No active batches]';
+    }
+    return '$name: $batchText';
+  }
+
+  Future<String> _queryProxy(String prompt) async {
+    const systemInstruction =
+        'SYSTEM INSTRUCTION: You are a smart pantry assistant. You MUST base all consumption recommendations strictly on the precise batch-level expiration data provided below. Ignore general perishability rules. If a batch of \'Pepsi\' expires in 0 days (today), it has absolute priority over a batch of \'Fresh Chicken\' that expires in 5 days. Reference the specific quantities and days remaining when answering the user. STRICT HEALTH SAFETY RULE: You are strictly FORBIDDEN from recommending the consumption of any item that is already expired (where days remaining is less than 0), regardless of the item type. Do not suggest checking for smell or appearance for expired meat, dairy, or cooked food; explicitly instruct the user to DISCARD them. If there are not enough unexpired, safe ingredients to form a coherent meal, DO NOT force a recipe. Instead, clearly state that their options are limited due to expired items, and suggest a smart SHOPPING LIST to complement the remaining safe ingredients. NO FOLLOW-UP QUESTIONS RULE: You are operating in a stateless, single-turn environment. The user cannot reply to you. Therefore, you MUST NOT ask any follow-up questions. Do not end your responses with questions like \'What do you think?\', \'Should I generate a recipe?\', or \'Do you want another option?\'. Provide complete, definitive, and self-contained answers. Never prompt the user for more information.';
+
+    final requestContents = _messages.map<Map<String, dynamic>>((message) {
+      return {
+        'role': message.isUser ? 'user' : 'model',
+        'parts': [
+          {'text': message.text}
+        ]
+      };
+    }).toList();
+
+    final lastUserIndex =
+        requestContents.lastIndexWhere((entry) => entry['role'] == 'user');
+    if (lastUserIndex >= 0) {
+      requestContents[lastUserIndex]['parts'][0]['text'] =
+          '$systemInstruction\n\n$prompt';
+    }
+
+    final uri = Uri.parse('https://ai-pantry-proxy.hadasajercau.workers.dev/');
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'contents': requestContents,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception(
+          'Proxy request failed with status ${response.statusCode}');
+    }
+
+    final data = jsonDecode(response.body);
+    final text =
+        data['candidates']?[0]?['content']?['parts']?[0]?['text'] as String?;
+    return text ?? 'I could not generate a response.';
   }
 
   Future<void> _saveRecipe(String recipeText) async {
@@ -172,13 +234,13 @@ ${pantryItems.join('\n')}
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Rețetă salvată cu succes!')),
+          const SnackBar(content: Text('Recipe saved successfully!')),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Eroare la salvarea rețetei: $e')),
+          SnackBar(content: Text('Error saving recipe: $e')),
         );
       }
     }
@@ -192,8 +254,7 @@ ${pantryItems.join('\n')}
     final userDoc =
         await FirebaseFirestore.instance.collection('users').doc(uid).get();
     final displayName =
-        userDoc.data()?['displayName'] as String? ?? 'Utilizator necunoscut';
-
+        userDoc.data()?['displayName'] as String? ?? 'Unknown user';
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -230,7 +291,7 @@ ${pantryItems.join('\n')}
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
-                    'Rețete salvate',
+                    'Saved recipes',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -257,13 +318,13 @@ ${pantryItems.join('\n')}
                       return const Center(child: CircularProgressIndicator());
                     }
                     if (snapshot.hasError) {
-                      return Center(child: Text('Eroare: ${snapshot.error}'));
+                      return Center(child: Text('Error: ${snapshot.error}'));
                     }
 
                     final recipes = snapshot.data?.docs ?? [];
                     if (recipes.isEmpty) {
                       return const Center(
-                        child: Text('Nu există rețete salvate încă.'),
+                        child: Text('No saved recipes yet.'),
                       );
                     }
 
@@ -366,7 +427,7 @@ ${pantryItems.join('\n')}
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Asistent Inteligent'),
+        title: const Text('Smart Assistant'),
         centerTitle: true,
         leading: const Icon(Icons.auto_awesome),
         actions: [
@@ -406,7 +467,7 @@ ${pantryItems.join('\n')}
                             ),
                           ),
                           child: const Text(
-                            'Asistentul gândește...',
+                            'Assistant is thinking...',
                             style: TextStyle(
                               color: Colors.black54,
                               fontStyle: FontStyle.italic,
@@ -501,7 +562,7 @@ ${pantryItems.join('\n')}
                             size: 16,
                           ),
                           label: const Text(
-                            'Salvează',
+                            'Save',
                             style: TextStyle(fontSize: 12),
                           ),
                         ),
@@ -522,7 +583,7 @@ ${pantryItems.join('\n')}
                       minLines: 1,
                       maxLines: 4,
                       decoration: const InputDecoration(
-                        hintText: 'Scrie mesajul tău...',
+                        hintText: 'Type your message...',
                         border: OutlineInputBorder(),
                         isDense: true,
                       ),

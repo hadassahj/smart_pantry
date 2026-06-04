@@ -17,7 +17,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Scanează codul'),
+        title: const Text('Scan Barcode'),
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
       ),

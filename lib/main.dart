@@ -183,7 +183,7 @@ class SmartPantryApp extends ConsumerWidget {
         error: (err, stack) => Scaffold(
           body: Center(
             child: Text(
-              'Eroare: $err',
+              'Error: $err',
             ),
           ),
         ),
@@ -192,7 +192,7 @@ class SmartPantryApp extends ConsumerWidget {
             return const Scaffold(
               body: Center(
                 child: Text(
-                  'Eroare la crearea contului.',
+                  'Error creating account.',
                 ),
               ),
             );

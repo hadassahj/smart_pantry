@@ -75,14 +75,14 @@ class _HouseholdTabState extends State<HouseholdTab> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Membru eliminat din gospodărie.')),
+          const SnackBar(content: Text('Member removed from household.')),
         );
       }
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Eroare la eliminarea membrului: $error'),
+            content: Text('Error removing member: $error'),
             backgroundColor: Colors.redAccent,
           ),
         );
@@ -137,7 +137,7 @@ class _HouseholdTabState extends State<HouseholdTab> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Nu există utilizator conectat.'),
+            content: Text('No user is currently signed in.'),
             backgroundColor: Colors.redAccent,
           ),
         );
@@ -149,17 +149,16 @@ class _HouseholdTabState extends State<HouseholdTab> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Părăsește gospodăria'),
-          content:
-              const Text('Ești sigur că vrei să părăsești această gospodărie?'),
+          title: const Text('Leave household'),
+          content: const Text('Are you sure you want to leave this household?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Anulează'),
+              child: const Text('Cancel'),
             ),
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('Părăsește'),
+              child: const Text('Leave'),
             ),
           ],
         );
@@ -177,7 +176,7 @@ class _HouseholdTabState extends State<HouseholdTab> {
       final ownerId = houseData['ownerId'] as String? ?? '';
 
       if (!members.contains(currentUid)) {
-        throw 'Utilizatorul nu este membru al acestei gospodării.';
+        throw 'User is not a member of this household.';
       }
 
       final Map<String, dynamic> updateData = {
@@ -211,7 +210,7 @@ class _HouseholdTabState extends State<HouseholdTab> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Ai părăsit gospodăria.'),
+            content: Text('You have left the household.'),
           ),
         );
         widget.onHouseholdChanged(newHouseholdRef.id);
@@ -220,7 +219,7 @@ class _HouseholdTabState extends State<HouseholdTab> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Eroare la părăsirea gospodăriei: $error'),
+            content: Text('Error leaving the household: $error'),
             backgroundColor: Colors.redAccent,
           ),
         );
@@ -258,7 +257,7 @@ class _HouseholdTabState extends State<HouseholdTab> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Membri activi în casă',
+                          'Active members in household',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -297,7 +296,7 @@ class _HouseholdTabState extends State<HouseholdTab> {
 
                             if (memberSnapshot.hasError) {
                               return Text(
-                                'Eroare la încărcarea membrilor.',
+                                'Error loading members.',
                                 style: TextStyle(
                                   color: Colors.red.shade600,
                                   fontSize: 14,
@@ -308,7 +307,7 @@ class _HouseholdTabState extends State<HouseholdTab> {
                             final memberData = memberSnapshot.data ?? [];
                             if (memberData.isEmpty) {
                               return const Text(
-                                'Niciun membru activ încă.',
+                                'No active members yet.',
                                 style: TextStyle(
                                     fontSize: 16, color: Colors.black54),
                               );
@@ -359,26 +358,24 @@ class _HouseholdTabState extends State<HouseholdTab> {
                                             context: context,
                                             builder: (dialogContext) {
                                               return AlertDialog(
-                                                title: const Text(
-                                                    'Elimină membru'),
+                                                title:
+                                                    const Text('Remove member'),
                                                 content: const Text(
-                                                    'Ești sigur că vrei să elimini acest membru?'),
+                                                    'Are you sure you want to remove this member?'),
                                                 actions: [
                                                   TextButton(
                                                     onPressed: () =>
                                                         Navigator.of(
                                                                 dialogContext)
                                                             .pop(false),
-                                                    child:
-                                                        const Text('Anulează'),
+                                                    child: const Text('Cancel'),
                                                   ),
                                                   TextButton(
                                                     onPressed: () =>
                                                         Navigator.of(
                                                                 dialogContext)
                                                             .pop(true),
-                                                    child:
-                                                        const Text('Elimină'),
+                                                    child: const Text('Remove'),
                                                   ),
                                                 ],
                                               );
@@ -409,7 +406,7 @@ class _HouseholdTabState extends State<HouseholdTab> {
                               ),
                             ),
                             icon: const Icon(Icons.exit_to_app),
-                            label: const Text('Părăsește Gospodăria'),
+                            label: const Text('Leave Household'),
                             onPressed: _leaveHousehold,
                           ),
                         ),
@@ -462,12 +459,11 @@ class _HouseholdTabState extends State<HouseholdTab> {
           .doc(widget.householdId)
           .set({'name': name.trim()}, SetOptions(merge: true));
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Numele gospodăriei a fost actualizat.')),
+        const SnackBar(content: Text('Household name updated.')),
       );
     } catch (_) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Eroare la actualizarea numelui gospodăriei.')),
+        const SnackBar(content: Text('Error updating household name.')),
       );
     } finally {
       setState(() {
@@ -483,7 +479,7 @@ class _HouseholdTabState extends State<HouseholdTab> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Editează numele gospodăriei'),
+          title: const Text('Edit household name'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -494,7 +490,7 @@ class _HouseholdTabState extends State<HouseholdTab> {
                   autofocus: true,
                   maxLength: 30,
                   decoration: const InputDecoration(
-                    labelText: 'Nume gospodărie',
+                    labelText: 'Household name',
                   ),
                 ),
               ],
@@ -503,7 +499,7 @@ class _HouseholdTabState extends State<HouseholdTab> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Anulează'),
+              child: const Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -512,7 +508,7 @@ class _HouseholdTabState extends State<HouseholdTab> {
                   Navigator.of(dialogContext).pop();
                 }
               },
-              child: const Text('Salvează'),
+              child: const Text('Save'),
             ),
           ],
         );
@@ -563,7 +559,7 @@ class _HouseholdTabState extends State<HouseholdTab> {
                   ),
                   const SizedBox(height: 18),
                   const Text(
-                    'Trimite acest cod către membri pentru a-i invita în gospodăria ta.',
+                    'Share this code with members to invite them to your household.',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 16, color: Colors.black54),
                   ),
@@ -581,8 +577,7 @@ class _HouseholdTabState extends State<HouseholdTab> {
                     width: double.infinity,
                     child: ElevatedButton.icon(
                       icon: const Icon(Icons.qr_code_scanner),
-                      label: const Text(
-                          'Scanează QR pentru a te alătura unei gospodării'),
+                      label: const Text('Scan QR to join a household'),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
@@ -616,11 +611,11 @@ class _HouseholdTabState extends State<HouseholdTab> {
     if (scannedId == null) return null;
 
     if (!_isValidHouseholdId(scannedId)) {
-      return 'Cod invalid. Te rog scanează un QR de gospodărie valid.';
+      return 'Invalid code. Please scan a valid household QR.';
     }
 
     if (scannedId == widget.householdId) {
-      return 'Ești deja în această gospodărie!';
+      return 'You\'re already in this household!';
     }
 
     final currentInventory = await FirebaseFirestore.instance
@@ -635,9 +630,9 @@ class _HouseholdTabState extends State<HouseholdTab> {
       builder: (dialogContext) {
         if (itemCount > 0) {
           return AlertDialog(
-            title: const Text('Atenție la datele tale!'),
+            title: const Text('Warning about your data!'),
             content: Text(
-              'Cămara ta curentă conține $itemCount produse. Dacă te alături noii gospodării, vei pierde accesul la produsele tale.\n\nSfat inteligent: Pentru a păstra aceste produse, apasă Anulare și cere celuilalt membru să scaneze codul tău QR.',
+              'Your current pantry contains $itemCount items. If you join the new household, you will lose access to your products.\n\nSmart tip: To keep these items, press Cancel and ask the other member to scan your QR code.',
             ),
             actions: [
               ElevatedButton(
@@ -645,27 +640,27 @@ class _HouseholdTabState extends State<HouseholdTab> {
                   backgroundColor: Colors.teal,
                 ),
                 onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: const Text('Anulează (Recomandat)'),
+                child: const Text('Cancel (Recommended)'),
               ),
               TextButton(
                 onPressed: () => Navigator.of(dialogContext).pop(true),
-                child: const Text('Mă alătur oricum'),
+                child: const Text('Join anyway'),
               ),
             ],
           );
         }
 
         return AlertDialog(
-          title: const Text('Alăturare gospodărie'),
-          content: const Text('Dorești să te alături acestei cămări?'),
+          title: const Text('Join household'),
+          content: const Text('Do you want to join this pantry?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Anulează'),
+              child: const Text('Cancel'),
             ),
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('Confirmă'),
+              child: const Text('Confirm'),
             ),
           ],
         );
@@ -686,26 +681,26 @@ class _HouseholdTabState extends State<HouseholdTab> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Adaugă item în lista de cumpărături'),
+          title: const Text('Add item to shopping list'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: nameController,
-                decoration: const InputDecoration(labelText: 'Nume Produs'),
+                decoration: const InputDecoration(labelText: 'Product name'),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: quantityController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Cantitate'),
+                decoration: const InputDecoration(labelText: 'Quantity'),
               ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Anulează'),
+              child: const Text('Cancel'),
             ),
             TextButton(
               onPressed: () async {
@@ -715,7 +710,7 @@ class _HouseholdTabState extends State<HouseholdTab> {
                 if (name.isEmpty) {
                   ScaffoldMessenger.of(dialogContext).showSnackBar(
                     const SnackBar(
-                        content: Text('Te rog introdu numele produsului.')),
+                        content: Text('Please enter the product name.')),
                   );
                   return;
                 }
@@ -734,7 +729,7 @@ class _HouseholdTabState extends State<HouseholdTab> {
                 });
                 Navigator.of(dialogContext).pop();
               },
-              child: const Text('Adaugă'),
+              child: const Text('Add'),
             ),
           ],
         );
@@ -761,7 +756,7 @@ class _HouseholdTabState extends State<HouseholdTab> {
           .delete();
     } catch (_) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Eroare la ștergerea itemului.')),
+        const SnackBar(content: Text('Error deleting the item.')),
       );
     }
   }
@@ -776,7 +771,7 @@ class _HouseholdTabState extends State<HouseholdTab> {
           .update({'isSuggested': false, 'quantity': quantity});
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Sugestia a fost promovată în listă.')),
+          const SnackBar(content: Text('Suggestion promoted to the list.')),
         );
       }
     } catch (_) {
@@ -804,12 +799,12 @@ class _HouseholdTabState extends State<HouseholdTab> {
                 const Icon(Icons.lock_outline, size: 80, color: Colors.grey),
                 const SizedBox(height: 20),
                 const Text(
-                  'Acces restricționat',
+                  'Restricted access',
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 12),
                 const Text(
-                  'Pentru a folosi lista de cumpărături și a colabora într-o gospodărie, trebuie să îți creezi un cont gratuit sau să te loghezi.',
+                  'To use the shopping list and collaborate in a household, create a free account or log in.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.grey, fontSize: 16),
                 ),
@@ -822,7 +817,7 @@ class _HouseholdTabState extends State<HouseholdTab> {
                       widget.onGoToAccount!();
                     }
                   },
-                  child: const Text('Mergi la Cont'),
+                  child: const Text('Go to Account'),
                 ),
               ],
             ),
@@ -895,7 +890,7 @@ class _HouseholdTabState extends State<HouseholdTab> {
                       IconButton(
                         icon: const Icon(Icons.qr_code),
                         onPressed: _showInviteSheet,
-                        tooltip: 'Invită',
+                        tooltip: 'Invite',
                       ),
                       IconButton(
                         icon: const Icon(Icons.settings_rounded),
@@ -921,7 +916,7 @@ class _HouseholdTabState extends State<HouseholdTab> {
                             Padding(
                               padding: const EdgeInsets.only(left: 12.0),
                               child: const Text(
-                                'Lista de cumpărături partajată',
+                                'Shared shopping list',
                                 style: TextStyle(
                                     fontSize: 18, fontWeight: FontWeight.bold),
                               ),
@@ -989,7 +984,7 @@ class _HouseholdTabState extends State<HouseholdTab> {
                                       suggestedItems.isEmpty) {
                                     return Center(
                                       child: Text(
-                                        'Lista de cumpărături este goală. Apasă + pentru a adăuga.',
+                                        'Shopping list is empty. Tap + to add.',
                                         style: TextStyle(
                                           color: Colors.grey.shade600,
                                           fontSize: 16,
@@ -1007,7 +1002,7 @@ class _HouseholdTabState extends State<HouseholdTab> {
                                           padding: const EdgeInsets.symmetric(
                                               vertical: 12),
                                           child: Text(
-                                            'Nicio intrare oficială încă.',
+                                            'No official entries yet.',
                                             style: TextStyle(
                                                 color: Colors.grey.shade600,
                                                 fontSize: 16),
@@ -1091,7 +1086,7 @@ class _HouseholdTabState extends State<HouseholdTab> {
                                         const Divider(),
                                         const SizedBox(height: 12),
                                         Text(
-                                          'Sugestii din cămară',
+                                          'Pantry suggestions',
                                           style: TextStyle(
                                             color: Colors.grey.shade700,
                                             fontWeight: FontWeight.bold,

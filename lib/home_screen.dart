@@ -140,13 +140,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     icon: Icon(Icons.inventory_2_outlined),
                     selectedIcon:
                         Icon(Icons.inventory_2, color: Color(0xFFF25C05)),
-                    label: 'Cămară',
+                    label: 'Pantry',
                   ),
                   NavigationDestination(
                     icon: Icon(Icons.family_restroom_outlined),
                     selectedIcon:
                         Icon(Icons.family_restroom, color: Color(0xFFF25C05)),
-                    label: 'Gospodărie',
+                    label: 'Household',
                   ),
                   NavigationDestination(
                     icon: Icon(Icons.auto_awesome_outlined),
@@ -157,7 +157,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   NavigationDestination(
                     icon: Icon(Icons.person_outline),
                     selectedIcon: Icon(Icons.person, color: Color(0xFFF25C05)),
-                    label: 'Cont',
+                    label: 'Account',
                   ),
                 ],
               ),

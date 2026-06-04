@@ -163,12 +163,12 @@ class _AddProductSheetState extends State<AddProductSheet> {
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('$productName adăugat! 🥫')));
+            .showSnackBar(SnackBar(content: Text('$productName added! 🥫')));
       }
     } catch (e) {
       if (mounted)
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Eroare: $e')));
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -191,13 +191,13 @@ class _AddProductSheetState extends State<AddProductSheet> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Adaugă Produs',
+            const Text('Add Product',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 20),
             TextField(
               controller: _nameController,
               decoration: const InputDecoration(
-                  labelText: 'Nume Produs',
+                  labelText: 'Product Name',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.fastfood)),
               autofocus: true,
@@ -206,7 +206,7 @@ class _AddProductSheetState extends State<AddProductSheet> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Expiră la:', style: TextStyle(fontSize: 16)),
+                const Text('Expires on:', style: TextStyle(fontSize: 16)),
                 TextButton.icon(
                   onPressed: _pickDate,
                   icon: const Icon(Icons.calendar_today),
@@ -220,7 +220,7 @@ class _AddProductSheetState extends State<AddProductSheet> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Cantitate:', style: TextStyle(fontSize: 16)),
+                const Text('Quantity:', style: TextStyle(fontSize: 16)),
                 Row(
                   children: [
                     IconButton(
@@ -246,7 +246,7 @@ class _AddProductSheetState extends State<AddProductSheet> {
                 onPressed: _isLoading ? null : _saveProduct,
                 child: _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Salvează în Cămară',
+                    : const Text('Save to Pantry',
                         style: TextStyle(fontSize: 16)),
               ),
             ),

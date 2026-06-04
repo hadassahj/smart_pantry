@@ -52,6 +52,7 @@ class _PantryTabState extends State<PantryTab> {
       'batches': batches,
       'isConsumed': isNowGhost,
       'consumedAt': isNowGhost ? FieldValue.serverTimestamp() : null,
+      'consumptionHistory': FieldValue.arrayUnion([Timestamp.now()]),
     });
 
     if (isNowGhost) {
@@ -64,17 +65,17 @@ class _PantryTabState extends State<PantryTab> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Ștergi produsul?'),
+          title: const Text('Delete product?'),
           content: const Text(
-              'Ești sigur că vrei să elimini acest produs din cămară?'),
+              'Are you sure you want to remove this item from the pantry?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Anulează'),
+              child: const Text('Cancel'),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Șterge', style: TextStyle(color: Colors.red)),
+              child: const Text('Delete', style: TextStyle(color: Colors.red)),
             ),
           ],
         );
@@ -95,13 +96,14 @@ class _PantryTabState extends State<PantryTab> {
       'totalQuantity': 0,
       'batches': [],
       'consumedAt': FieldValue.serverTimestamp(),
+      'consumptionHistory': FieldValue.arrayUnion([Timestamp.now()]),
     });
     await _addSuggestedShoppingItem(name: productData['name'] as String?);
   }
 
   Future<void> _addSuggestedShoppingItem({String? name}) async {
     final suggestedName =
-        (name?.trim().isEmpty ?? true) ? 'Produs' : name!.trim();
+        (name?.trim().isEmpty ?? true) ? 'Product' : name!.trim();
     try {
       await FirebaseFirestore.instance
           .collection('households')
@@ -121,15 +123,133 @@ class _PantryTabState extends State<PantryTab> {
     }
   }
 
+  Widget _buildSmartInsightCard(Map<String, dynamic> data) {
+    final int totalQuantity = data['totalQuantity'] as int? ?? 0;
+    final List<dynamic> rawHistory =
+        data['consumptionHistory'] as List<dynamic>? ?? [];
+    final history = <DateTime>[];
+
+    for (final entry in rawHistory) {
+      if (entry is Timestamp) {
+        history.add(entry.toDate());
+      } else if (entry is DateTime) {
+        history.add(entry);
+      }
+    }
+
+    if (totalQuantity == 0 || history.length < 2) {
+      return Card(
+        elevation: 0,
+        color: Colors.grey.shade50,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.info_outline, color: Colors.black54),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Keep using the app to unlock smart consumption predictions.',
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    history.sort();
+    final firstDate = history.first;
+    final lastDate = history.last;
+    final timespanInDays = lastDate.difference(firstDate).inHours / 24.0;
+
+    // Strict Rule: Require at least 24 hours of real history
+    if (timespanInDays < 1.0) {
+      return Card(
+        elevation: 0,
+        color: Colors.grey.shade50,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.info_outline, color: Colors.black54),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Keep using the app to unlock smart consumption predictions.',
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final averageDaysPerUnit = timespanInDays / (history.length - 1);
+    final daysRemaining = totalQuantity * averageDaysPerUnit;
+    final exhaustionDate =
+        DateTime.now().add(Duration(days: daysRemaining.round()));
+    final nextUnitText = averageDaysPerUnit.toStringAsFixed(1);
+    final exhaustionDateText = DateFormat('dd MMM yyyy').format(exhaustionDate);
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: LinearGradient(
+            colors: [Colors.blue.shade50, Colors.blue.shade100],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(top: 2),
+              child: Icon(Icons.auto_graph, color: Color(0xFF1E3A8A)),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                'Based on your habits, you consume one unit every ~${nextUnitText} days. Current stock will likely run out around $exhaustionDateText.',
+                style: const TextStyle(
+                  color: Color(0xFF1E3A8A),
+                  fontSize: 14,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // --- NOU: Funcția care arată detaliile loturilor ---
   void _showBatchDetails(
       BuildContext context, String docId, Map<String, dynamic> productData) {
-    final String currentName = productData['name'] as String? ?? 'Produs';
+    final String currentName = productData['name'] as String? ?? 'Product';
     final int totalQuantity = productData['totalQuantity'] as int? ?? 0;
     final String unitLabel =
         (productData['unit'] as String?)?.trim().isNotEmpty == true
             ? productData['unit'] as String
-            : 'unități';
+            : 'units';
     final List<dynamic> batches =
         List.from(productData['batches'] as List<dynamic>? ?? []);
 
@@ -233,6 +353,8 @@ class _PantryTabState extends State<PantryTab> {
                   ],
                 ),
                 const SizedBox(height: 16),
+                _buildSmartInsightCard(productData),
+                const SizedBox(height: 16),
                 const Divider(),
                 const SizedBox(height: 16),
                 Expanded(
@@ -246,7 +368,7 @@ class _PantryTabState extends State<PantryTab> {
                                 batch['quantity'] as int? ?? 0;
                             final expiryTimestamp =
                                 batch['expiryDate'] as Timestamp?;
-                            String expiryText = 'Fără dată';
+                            String expiryText = 'No date';
                             Color expiryColor = Colors.black54;
 
                             if (expiryTimestamp != null) {
@@ -263,16 +385,16 @@ class _PantryTabState extends State<PantryTab> {
                                   expiryDay.difference(today).inDays;
 
                               if (daysLeft < 0) {
-                                expiryText = 'Expirat!';
+                                expiryText = 'Expired!';
                                 expiryColor = const Color(0xFFEF476F);
                               } else if (daysLeft == 0) {
-                                expiryText = 'Expiră AZI';
+                                expiryText = 'Expires TODAY';
                                 expiryColor = const Color(0xFFF25C05);
                               } else if (daysLeft <= 3) {
-                                expiryText = '~$daysLeft zile';
+                                expiryText = '~$daysLeft days';
                                 expiryColor = const Color(0xFFF25C05);
                               } else {
-                                expiryText = '~$daysLeft zile';
+                                expiryText = '~$daysLeft days';
                                 expiryColor = Colors.green.shade700;
                               }
                             }
@@ -317,7 +439,7 @@ class _PantryTabState extends State<PantryTab> {
                                 rootExpiryDate != null
                                     ? DateFormat('dd MMM yyyy')
                                         .format(rootExpiryDate.toDate())
-                                    : 'Fără dată',
+                                    : 'No date',
                                 style: const TextStyle(
                                   fontSize: 16,
                                   color: Colors.black54,
@@ -341,10 +463,11 @@ class _PantryTabState extends State<PantryTab> {
                     final confirmed = await _confirmDelete();
                     if (!confirmed) return;
                     await _markProductConsumed(docId, productData);
+                    FocusManager.instance.primaryFocus?.unfocus();
                     Navigator.of(context).pop();
                   },
                   icon: const Icon(Icons.delete_outline_rounded, size: 26),
-                  label: const Text('Elimină din cămară',
+                  label: const Text('Remove from pantry',
                       style:
                           TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
                 ),
@@ -410,7 +533,7 @@ class _PantryTabState extends State<PantryTab> {
               ),
             ),
 
-            // 2. „Foaia” cu fundal rece care conține produsele
+            // 2. The sheet containing the products
             Expanded(
               child: Container(
                 width: double.infinity,
@@ -426,7 +549,7 @@ class _PantryTabState extends State<PantryTab> {
                       child: TextField(
                         onChanged: (val) => setState(() => searchQuery = val),
                         decoration: InputDecoration(
-                          hintText: 'Caută produse',
+                          hintText: 'Search products',
                           prefixIcon:
                               const Icon(Icons.search, color: Colors.grey),
                           filled: true,
@@ -454,7 +577,7 @@ class _PantryTabState extends State<PantryTab> {
                           builder: (context, snapshot) {
                             if (snapshot.hasError) {
                               return Center(
-                                  child: Text('Eroare: ${snapshot.error}'));
+                                  child: Text('Error: ${snapshot.error}'));
                             }
                             if (snapshot.connectionState ==
                                 ConnectionState.waiting) {
@@ -520,14 +643,13 @@ class _PantryTabState extends State<PantryTab> {
                                           size: 80, color: Color(0xFFF25C05)),
                                     ),
                                     const SizedBox(height: 24),
-                                    const Text('Cămara e goală.',
+                                    const Text('Pantry is empty.',
                                         style: TextStyle(
                                             fontSize: 24,
                                             fontWeight: FontWeight.bold,
                                             color: Colors.black87)),
                                     const SizedBox(height: 8),
-                                    const Text(
-                                        'Apasă pe "Adaugă" pentru a începe!',
+                                    const Text('Tap "Add" to get started!',
                                         style: TextStyle(
                                             fontSize: 16,
                                             color: Colors.black54)),
@@ -544,13 +666,13 @@ class _PantryTabState extends State<PantryTab> {
                                 final doc = activeProducts[index];
                                 final productData =
                                     doc.data() as Map<String, dynamic>;
-                                final name = productData['name'] ?? 'Produs';
+                                final name = productData['name'] ?? 'Product';
                                 final totalQuantity =
                                     productData['totalQuantity'] ?? 0;
                                 List<dynamic> batches =
                                     List.from(productData['batches'] ?? []);
 
-                                String expiryText = 'Fără dată';
+                                String expiryText = 'No date';
                                 Color expiryColor = Colors.grey;
                                 Color badgeColor = Colors.grey.shade200;
 
@@ -573,20 +695,20 @@ class _PantryTabState extends State<PantryTab> {
                                       expiryDay.difference(today).inDays;
 
                                   if (daysLeft < 0) {
-                                    expiryText = 'Expirat!';
+                                    expiryText = 'Expired!';
                                     expiryColor = Colors.white;
                                     badgeColor = const Color(0xFFEF476F);
                                   } else if (daysLeft == 0) {
-                                    expiryText = 'Expiră AZI';
+                                    expiryText = 'Expires TODAY';
                                     expiryColor = Colors.white;
                                     badgeColor = const Color(0xFFF25C05);
                                   } else if (daysLeft <= 3) {
-                                    expiryText = '~$daysLeft zile';
+                                    expiryText = '~$daysLeft days';
                                     expiryColor = const Color(0xFFF25C05);
                                     badgeColor = const Color(0xFFF25C05)
                                         .withOpacity(0.15);
                                   } else {
-                                    expiryText = '~$daysLeft zile';
+                                    expiryText = '~$daysLeft days';
                                     expiryColor = Colors.green.shade700;
                                     badgeColor = Colors.green.shade50;
                                   }
@@ -785,7 +907,7 @@ class _PantryTabState extends State<PantryTab> {
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
           icon: const Icon(Icons.add_rounded, size: 28),
-          label: const Text('Adaugă',
+          label: const Text('Add',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           onPressed: () {
             showModalBottomSheet(
@@ -822,10 +944,10 @@ class _PantryTabState extends State<PantryTab> {
                             child: const Icon(Icons.document_scanner_rounded,
                                 color: Colors.white),
                           ),
-                          title: const Text('Scanează cod de bare',
+                          title: const Text('Scan barcode',
                               style: TextStyle(
                                   fontWeight: FontWeight.w800, fontSize: 18)),
-                          subtitle: const Text('Rapid și automat',
+                          subtitle: const Text('Fast and automatic',
                               style: TextStyle(color: Colors.black54)),
                           onTap: () async {
                             Navigator.pop(sheetContext);
@@ -842,7 +964,7 @@ class _PantryTabState extends State<PantryTab> {
                                 ScaffoldMessenger.of(context);
                             scaffoldMessenger.showSnackBar(
                               const SnackBar(
-                                content: Text('Verific codul de bare...'),
+                                content: Text('Checking barcode...'),
                               ),
                             );
                             try {
@@ -881,7 +1003,7 @@ class _PantryTabState extends State<PantryTab> {
                               } else {
                                 scaffoldMessenger.showSnackBar(
                                   const SnackBar(
-                                    content: Text('Produsul nu a fost găsit.'),
+                                    content: Text('Product was not found.'),
                                   ),
                                 );
                                 showModalBottomSheet(
@@ -901,7 +1023,7 @@ class _PantryTabState extends State<PantryTab> {
                               scaffoldMessenger.showSnackBar(
                                 const SnackBar(
                                   content:
-                                      Text('Eroare la căutarea produsului.'),
+                                      Text('Error searching for the product.'),
                                 ),
                               );
                               showModalBottomSheet(
@@ -934,7 +1056,7 @@ class _PantryTabState extends State<PantryTab> {
                             child: const Icon(Icons.edit_rounded,
                                 color: Colors.black87),
                           ),
-                          title: const Text('Adaugă manual',
+                          title: const Text('Add manually',
                               style: TextStyle(
                                   fontWeight: FontWeight.w800, fontSize: 18)),
                           onTap: () {

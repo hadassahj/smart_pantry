@@ -39,22 +39,22 @@ class _AccountTabState extends State<AccountTab> {
   String _getFriendlyAuthError(FirebaseAuthException e) {
     switch (e.code) {
       case 'network-request-failed':
-        return 'Nu ai conexiune la internet.';
+        return 'No internet connection.';
       case 'user-not-found':
-        return 'Nu există niciun cont cu acest email.';
+        return 'No account found with that email.';
       case 'wrong-password':
       case 'invalid-credential':
-        return 'Email sau parolă incorectă.';
+        return 'Incorrect email or password.';
       case 'email-already-in-use':
-        return 'Acest email este deja folosit.';
+        return 'This email is already in use.';
       case 'weak-password':
-        return 'Parola este prea slabă (minim 6 caractere).';
+        return 'Password is too weak (minimum 6 characters).';
       case 'invalid-email':
-        return 'Adresa de email nu este validă.';
+        return 'Email address is not valid.';
       case 'too-many-requests':
-        return 'Prea multe încercări. Revino mai târziu.';
+        return 'Too many attempts. Please try again later.';
       default:
-        return 'A apărut o eroare neașteptată.';
+        return 'An unexpected error occurred.';
     }
   }
 
@@ -100,13 +100,13 @@ class _AccountTabState extends State<AccountTab> {
   Future<void> _saveDisplayName() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
-      _showMessage('Te rog introdu numele.');
+      _showMessage('Please enter your name.');
       return;
     }
 
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      _showMessage('Nu există utilizator conectat.');
+      _showMessage('No user is signed in.');
       return;
     }
 
@@ -117,20 +117,20 @@ class _AccountTabState extends State<AccountTab> {
       );
       await user.updateDisplayName(name);
       if (!mounted) return;
-      _showMessage('Numele a fost salvat.');
+      _showMessage('Name saved successfully.');
       if (mounted) {
         setState(() {});
       }
     } catch (_) {
       if (!mounted) return;
-      _showMessage('Eroare la salvarea numelui.');
+      _showMessage('Failed to save name.');
     }
   }
 
   Future<void> _saveDietaryPreferences() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      _showMessage('Nu există utilizator conectat.');
+      _showMessage('No user is signed in.');
       return;
     }
 
@@ -146,13 +146,13 @@ class _AccountTabState extends State<AccountTab> {
         SetOptions(merge: true),
       );
       if (!mounted) return;
-      _showMessage('Preferințele culinare au fost salvate.');
+      _showMessage('Dietary preferences saved.');
       if (mounted) {
         setState(() {});
       }
     } catch (_) {
       if (!mounted) return;
-      _showMessage('Eroare la salvarea preferințelor culinare.');
+      _showMessage('Failed to save dietary preferences.');
     } finally {
       if (mounted) {
         setState(() {
@@ -242,7 +242,7 @@ class _AccountTabState extends State<AccountTab> {
     final password = _passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
-      return 'Completează email și parolă.';
+      return 'Please enter email and password.';
     }
 
     try {
@@ -255,7 +255,7 @@ class _AccountTabState extends State<AccountTab> {
             .signInWithEmailAndPassword(email: email, password: password);
         final user = result.user;
         if (user == null) {
-          return 'Nu s-a putut autentifica.';
+          return 'Unable to sign in.';
         }
 
         final newHouseholdId = await _ensureHouseholdForCurrentUser(user);
@@ -264,7 +264,7 @@ class _AccountTabState extends State<AccountTab> {
       } else {
         final user = FirebaseAuth.instance.currentUser;
         if (user == null) {
-          return 'Nu există utilizator conectat.';
+          return 'No user is signed in.';
         }
 
         final credential = EmailAuthProvider.credential(
@@ -278,14 +278,14 @@ class _AccountTabState extends State<AccountTab> {
     } on FirebaseAuthException catch (e) {
       return _getFriendlyAuthError(e);
     } catch (_) {
-      return 'A apărut o eroare. Încearcă din nou mai târziu.';
+      return 'An error occurred. Please try again later.';
     }
   }
 
   Future<String?> _sendPasswordReset() async {
     final email = _emailController.text.trim();
     if (email.isEmpty) {
-      return 'Te rog introdu email-ul pentru resetare.';
+      return 'Please enter your email to reset.';
     }
 
     try {
@@ -294,7 +294,7 @@ class _AccountTabState extends State<AccountTab> {
     } on FirebaseAuthException catch (e) {
       return _getFriendlyAuthError(e);
     } catch (_) {
-      return 'A apărut o eroare. Încearcă din nou mai târziu.';
+      return 'An error occurred. Please try again later.';
     }
   }
 
@@ -310,16 +310,16 @@ class _AccountTabState extends State<AccountTab> {
       await FirebaseAuth.instance.signOut();
       await FirebaseAuth.instance.signInAnonymously();
       if (!mounted) return;
-      _showMessage('Ai fost deconectat și conectat anonim.');
+      _showMessage('You have been signed out and logged in anonymously.');
       if (mounted && ModalRoute.of(context)?.isCurrent == false) {
         Navigator.of(context).pop();
       }
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      _showMessage(e.message ?? 'Eroare la deconectare.');
+      _showMessage(e.message ?? 'Error signing out.');
     } catch (_) {
       if (!mounted) return;
-      _showMessage('A apărut o eroare la deconectare.');
+      _showMessage('An error occurred while signing out.');
     } finally {
       if (mounted) {
         setState(() {
@@ -350,14 +350,14 @@ class _AccountTabState extends State<AccountTab> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Schimbă numele',
+                    'Change name',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
                   TextField(
                     controller: _nameController,
                     decoration: const InputDecoration(
-                      labelText: 'Numele tău',
+                      labelText: 'Your name',
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -374,7 +374,7 @@ class _AccountTabState extends State<AccountTab> {
                                 Navigator.pop(context);
                               }
                             },
-                      child: const Text('Salvează numele'),
+                      child: const Text('Save name'),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -408,7 +408,7 @@ class _AccountTabState extends State<AccountTab> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Preferințe culinare / Dietă',
+                    'Dietary preferences',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
@@ -416,7 +416,7 @@ class _AccountTabState extends State<AccountTab> {
                     controller: _dietaryController,
                     decoration: const InputDecoration(
                       hintText:
-                          'Ex: Paleo, Vegan, Fără gluten, Halal, Adventist...',
+                          'Ex: Paleo, Vegan, Gluten-free, Halal, Adventist...',
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -442,7 +442,7 @@ class _AccountTabState extends State<AccountTab> {
                                 strokeWidth: 2,
                               ),
                             )
-                          : const Text('Salvează preferințe'),
+                          : const Text('Save preferences'),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -482,7 +482,7 @@ class _AccountTabState extends State<AccountTab> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        localLoginMode ? 'Autentificare' : 'Creează cont',
+                        localLoginMode ? 'Log in' : 'Create account',
                         style: const TextStyle(
                             fontSize: 18, fontWeight: FontWeight.bold),
                       ),
@@ -500,7 +500,7 @@ class _AccountTabState extends State<AccountTab> {
                         controller: _passwordController,
                         obscureText: true,
                         decoration: const InputDecoration(
-                          labelText: 'Parolă',
+                          labelText: 'Password',
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -526,14 +526,14 @@ class _AccountTabState extends State<AccountTab> {
                                         _isProcessing = false;
                                         if (resetMessage == null) {
                                           localSuccessMessage =
-                                              'Emailul de resetare a fost trimis!';
+                                              'Password reset email sent!';
                                         } else {
                                           localErrorMessage = resetMessage;
                                         }
                                       });
                                     }
                                   },
-                            child: const Text('Ai uitat parola?'),
+                            child: const Text('Forgot password?'),
                           ),
                         ),
                       ],
@@ -596,9 +596,8 @@ class _AccountTabState extends State<AccountTab> {
                                     strokeWidth: 2,
                                   ),
                                 )
-                              : Text(localLoginMode
-                                  ? 'Loghează-te'
-                                  : 'Creează cont'),
+                              : Text(
+                                  localLoginMode ? 'Log In' : 'Create Account'),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -612,8 +611,8 @@ class _AccountTabState extends State<AccountTab> {
                                   });
                                 },
                           child: Text(localLoginMode
-                              ? 'Nu ai cont? Creează cont'
-                              : 'Ai deja cont? Loghează-te'),
+                              ? 'Don\'t have an account? Create one'
+                              : 'Already have an account? Log in'),
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -623,6 +622,170 @@ class _AccountTabState extends State<AccountTab> {
               ),
             );
           },
+        );
+      },
+    );
+  }
+
+  Widget _buildPantryHealthScore() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('households')
+          .doc(widget.householdId)
+          .collection('inventory')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data == null) {
+          return const SizedBox();
+        }
+
+        print(
+            'DEBUG HEALTH SCORE: Found ${snapshot.data!.docs.length} total raw documents.');
+
+        int totalItems = 0;
+        int expiredItems = 0;
+        int atRiskItems = 0;
+
+        for (var doc in snapshot.data!.docs) {
+          final data = doc.data() as Map?;
+          if (data == null) continue;
+
+          if (data['isConsumed'] == true) continue;
+
+          final batches = data['batches'] as List?;
+          if (batches == null || batches.isEmpty) continue;
+
+          for (var batch in batches) {
+            if (batch is! Map) continue;
+
+            int batchQty = 0;
+            if (batch['quantity'] is int) {
+              batchQty = batch['quantity'] as int;
+            } else if (batch['quantity'] is double) {
+              batchQty = (batch['quantity'] as double).toInt();
+            } else if (batch['quantity'] is String) {
+              batchQty = int.tryParse(batch['quantity']) ?? 0;
+            }
+
+            if (batchQty <= 0) continue;
+
+            dynamic expiryValue = batch['expiryDate'];
+            DateTime? expiryDate;
+            if (expiryValue is Timestamp) {
+              expiryDate = expiryValue.toDate();
+            } else if (expiryValue is DateTime) {
+              expiryDate = expiryValue;
+            } else if (expiryValue is String) {
+              expiryDate = DateTime.tryParse(expiryValue);
+            }
+
+            totalItems += batchQty;
+            if (expiryDate == null) continue;
+
+            final daysLeft = expiryDate.difference(DateTime.now()).inDays;
+            if (daysLeft < 0) {
+              expiredItems += batchQty;
+            } else if (daysLeft <= 3) {
+              atRiskItems += batchQty;
+            }
+          }
+        }
+
+        double score = 100.0;
+        if (totalItems > 0) {
+          score = 100.0 -
+              (((expiredItems + (0.5 * atRiskItems)) / totalItems) * 100.0);
+        }
+        score = score.clamp(0.0, 100.0);
+        final scoreDisplay = score.round();
+        final indicatorColor = score >= 80
+            ? Colors.green
+            : score >= 50
+                ? Colors.orange
+                : Colors.red;
+
+        print(
+            'DEBUG HEALTH SCORE: Calculated totalItems: $totalItems | expired: $expiredItems | atRisk: $atRiskItems');
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 20),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          elevation: 2,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 80,
+                  height: 80,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    alignment: Alignment.center,
+                    children: [
+                      CircularProgressIndicator(
+                        value: score / 100.0,
+                        color: indicatorColor,
+                        backgroundColor: indicatorColor.withOpacity(0.2),
+                        strokeWidth: 8,
+                      ),
+                      Center(
+                        child: FittedBox(
+                          child: Text(
+                            '$scoreDisplay%',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 20,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Pantry Health Score',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Total items: $totalItems',
+                        style: TextStyle(
+                          color: Colors.grey.shade800,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Expired: $expiredItems',
+                        style: TextStyle(
+                          color: Colors.grey.shade800,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'At Risk: $atRiskItems',
+                        style: TextStyle(
+                          color: Colors.grey.shade800,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         );
       },
     );
@@ -642,7 +805,7 @@ class _AccountTabState extends State<AccountTab> {
         backgroundColor: backgroundColor,
         elevation: 0,
         title: const Text(
-          'Contul Meu',
+          'My Account',
           style:
               TextStyle(color: primaryTextColor, fontWeight: FontWeight.w700),
         ),
@@ -713,7 +876,9 @@ class _AccountTabState extends State<AccountTab> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              isAnonymous ? 'Cont Anonim' : 'Cont Legat',
+                              isAnonymous
+                                  ? 'Anonymous Account'
+                                  : 'Linked Account',
                               style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -723,8 +888,8 @@ class _AccountTabState extends State<AccountTab> {
                             const SizedBox(height: 6),
                             Text(
                               isAnonymous
-                                  ? 'Momentan ești un utilizator anonim. Pentru siguranța datelor, creează cont.'
-                                  : 'Cont securizat cu email',
+                                  ? 'You are currently anonymous. For data safety, create an account.'
+                                  : 'Email-secured account',
                               style: const TextStyle(
                                 fontSize: 14,
                                 color: secondaryTextColor,
@@ -745,6 +910,7 @@ class _AccountTabState extends State<AccountTab> {
                   ),
                 ),
                 const SizedBox(height: 24),
+                _buildPantryHealthScore(),
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -762,7 +928,7 @@ class _AccountTabState extends State<AccountTab> {
                       Padding(
                         padding: const EdgeInsets.fromLTRB(20, 22, 20, 8),
                         child: Text(
-                          'Profil',
+                          'Profile',
                           style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
@@ -775,7 +941,7 @@ class _AccountTabState extends State<AccountTab> {
                         leading: const Icon(Icons.person_outline,
                             color: secondaryTextColor),
                         title: const Text(
-                          'Numele tău',
+                          'Your name',
                           style: TextStyle(
                             fontWeight: FontWeight.w700,
                             color: primaryTextColor,
@@ -784,7 +950,7 @@ class _AccountTabState extends State<AccountTab> {
                         subtitle: Text(
                           _nameController.text.isNotEmpty
                               ? _nameController.text
-                              : 'Setează un nume',
+                              : 'Set a name',
                           style: const TextStyle(color: secondaryTextColor),
                         ),
                         trailing: const Icon(Icons.chevron_right,
@@ -814,7 +980,7 @@ class _AccountTabState extends State<AccountTab> {
                       Padding(
                         padding: const EdgeInsets.fromLTRB(20, 22, 20, 8),
                         child: Text(
-                          'Preferințe',
+                          'Preferences',
                           style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
@@ -827,7 +993,7 @@ class _AccountTabState extends State<AccountTab> {
                         leading: const Icon(Icons.restaurant_menu_rounded,
                             color: secondaryTextColor),
                         title: const Text(
-                          'Preferințe culinare / Dietă',
+                          'Dietary preferences',
                           style: TextStyle(
                             fontWeight: FontWeight.w700,
                             color: primaryTextColor,
@@ -836,7 +1002,7 @@ class _AccountTabState extends State<AccountTab> {
                         subtitle: Text(
                           _dietaryController.text.isNotEmpty
                               ? _dietaryController.text
-                              : 'Adaugă preferințe culinare',
+                              : 'Add dietary preferences',
                           style: const TextStyle(color: secondaryTextColor),
                         ),
                         trailing: const Icon(Icons.chevron_right,
@@ -866,7 +1032,7 @@ class _AccountTabState extends State<AccountTab> {
                       Padding(
                         padding: const EdgeInsets.fromLTRB(20, 22, 20, 8),
                         child: Text(
-                          'Securitate & Cont',
+                          'Security & Account',
                           style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
@@ -880,14 +1046,14 @@ class _AccountTabState extends State<AccountTab> {
                           leading: const Icon(Icons.login,
                               color: secondaryTextColor),
                           title: const Text(
-                            'Autentificare / Creare Cont',
+                            'Login / Create Account',
                             style: TextStyle(
                               fontWeight: FontWeight.w700,
                               color: primaryTextColor,
                             ),
                           ),
                           subtitle: const Text(
-                            'Convertește contul anonim într-un cont complet.',
+                            'Convert your anonymous account into a full account.',
                             style: TextStyle(color: secondaryTextColor),
                           ),
                           trailing: const Icon(Icons.chevron_right,
@@ -900,7 +1066,7 @@ class _AccountTabState extends State<AccountTab> {
                         ListTile(
                           leading: const Icon(Icons.logout, color: accentColor),
                           title: const Text(
-                            'Deconectare (Sign Out)',
+                            'Log Out',
                             style: TextStyle(
                               fontWeight: FontWeight.w700,
                               color: accentColor,
