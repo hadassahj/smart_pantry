@@ -887,17 +887,27 @@ class _HouseholdTabState extends State<HouseholdTab> {
                           ),
                         ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.qr_code),
-                        onPressed: _showInviteSheet,
-                        tooltip: 'Invite',
-                      ),
+                      if (isOwner) ...[
+                        IconButton(
+                          icon: const Icon(Icons.qr_code),
+                          onPressed: _showInviteSheet,
+                          tooltip: 'Invite',
+                        ),
+                      ],
                       IconButton(
                         icon: const Icon(Icons.settings_rounded),
                         onPressed: () => _showHouseholdSettings(context),
                       ),
                     ],
                   ),
+                  if (!isOwner)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8.0, bottom: 8.0),
+                      child: Text(
+                        'Only the household admin can invite new members.',
+                        style: TextStyle(fontSize: 14, color: Colors.black54),
+                      ),
+                    ),
                   const SizedBox(height: 16),
                   Expanded(
                     child: Container(
