@@ -1,7 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'database_provider.dart';
 
 class AccountTab extends StatefulWidget {
   final String householdId;
@@ -627,69 +630,15 @@ class _AccountTabState extends State<AccountTab> {
     );
   }
 
-  Widget _buildPantryHealthScore() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('households')
-          .doc(widget.householdId)
-          .collection('inventory')
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.data == null) {
-          return const SizedBox();
-        }
+  Widget _buildPantryHealthScore(BuildContext context) {
+    return Consumer(
+      builder: (context, ref, child) {
+        final database = ref.watch(databaseProvider(widget.householdId));
+        final stats = database.getPantryStatistics();
 
-        print(
-            'DEBUG HEALTH SCORE: Found ${snapshot.data!.docs.length} total raw documents.');
-
-        int totalItems = 0;
-        int expiredItems = 0;
-        int atRiskItems = 0;
-
-        for (var doc in snapshot.data!.docs) {
-          final data = doc.data() as Map?;
-          if (data == null) continue;
-
-          if (data['isConsumed'] == true) continue;
-
-          final batches = data['batches'] as List?;
-          if (batches == null || batches.isEmpty) continue;
-
-          for (var batch in batches) {
-            if (batch is! Map) continue;
-
-            int batchQty = 0;
-            if (batch['quantity'] is int) {
-              batchQty = batch['quantity'] as int;
-            } else if (batch['quantity'] is double) {
-              batchQty = (batch['quantity'] as double).toInt();
-            } else if (batch['quantity'] is String) {
-              batchQty = int.tryParse(batch['quantity']) ?? 0;
-            }
-
-            if (batchQty <= 0) continue;
-
-            dynamic expiryValue = batch['expiryDate'];
-            DateTime? expiryDate;
-            if (expiryValue is Timestamp) {
-              expiryDate = expiryValue.toDate();
-            } else if (expiryValue is DateTime) {
-              expiryDate = expiryValue;
-            } else if (expiryValue is String) {
-              expiryDate = DateTime.tryParse(expiryValue);
-            }
-
-            totalItems += batchQty;
-            if (expiryDate == null) continue;
-
-            final daysLeft = expiryDate.difference(DateTime.now()).inDays;
-            if (daysLeft < 0) {
-              expiredItems += batchQty;
-            } else if (daysLeft <= 3) {
-              atRiskItems += batchQty;
-            }
-          }
-        }
+        final totalItems = stats['total'] ?? 0;
+        final expiredItems = stats['expired'] ?? 0;
+        final atRiskItems = stats['atRisk'] ?? 0;
 
         double score = 100.0;
         if (totalItems > 0) {
@@ -703,9 +652,6 @@ class _AccountTabState extends State<AccountTab> {
             : score >= 50
                 ? Colors.orange
                 : Colors.red;
-
-        print(
-            'DEBUG HEALTH SCORE: Calculated totalItems: $totalItems | expired: $expiredItems | atRisk: $atRiskItems');
 
         return Card(
           margin: const EdgeInsets.only(bottom: 20),
@@ -910,7 +856,7 @@ class _AccountTabState extends State<AccountTab> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                _buildPantryHealthScore(),
+                _buildPantryHealthScore(context),
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.white,

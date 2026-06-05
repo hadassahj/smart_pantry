@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart'; // Avem nevoie pentru formatarea datei
+import 'database_provider.dart';
+import 'dart:async';
 
 class AddProductSheet extends StatefulWidget {
   final String householdId;
   final String? prefilledName;
+  final String? barcode;
   const AddProductSheet({
     super.key,
     required this.householdId,
-    this.prefilledName, // <--- ADAUGĂ ACEASTĂ LINIE
+    this.prefilledName,
+    this.barcode,
   });
 
   @override
@@ -158,6 +162,14 @@ class _AddProductSheetState extends State<AddProductSheet> {
           ],
           'createdAt': FieldValue.serverTimestamp(),
         });
+      }
+
+      if (widget.barcode?.trim().isNotEmpty == true) {
+        unawaited(saveLocalBarcodeNameForHousehold(
+          widget.householdId,
+          widget.barcode!.trim(),
+          productName,
+        ));
       }
 
       if (mounted) {

@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart'; // Folosim intl pentru a forma data frumos
 import 'add_product_sheet.dart';
+import 'database_provider.dart';
 import 'scanner_screen.dart'; //
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -967,9 +968,30 @@ class _PantryTabState extends State<PantryTab> {
                                 content: Text('Checking barcode...'),
                               ),
                             );
+                            final rawBarcode = barcode.toString().trim();
+                            final localName =
+                                await getLocalBarcodeNameForHousehold(
+                                    widget.householdId, rawBarcode);
+                            if (localName != null && localName.isNotEmpty) {
+                              showModalBottomSheet(
+                                context: context,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.white,
+                                shape: const RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.vertical(
+                                      top: Radius.circular(40)),
+                                ),
+                                builder: (context) => AddProductSheet(
+                                  householdId: widget.householdId,
+                                  prefilledName: localName,
+                                  barcode: rawBarcode,
+                                ),
+                              );
+                              return;
+                            }
                             try {
                               final response = await http.get(Uri.parse(
-                                  'https://world.openfoodfacts.org/api/v0/product/$barcode.json'));
+                                  'https://world.openfoodfacts.org/api/v0/product/$rawBarcode.json'));
                               final data = json.decode(response.body)
                                   as Map<String, dynamic>;
                               final status = data['status'] as int? ?? 0;
@@ -998,6 +1020,7 @@ class _PantryTabState extends State<PantryTab> {
                                   builder: (context) => AddProductSheet(
                                     householdId: widget.householdId,
                                     prefilledName: productName,
+                                    barcode: rawBarcode,
                                   ),
                                 );
                               } else {
@@ -1016,6 +1039,7 @@ class _PantryTabState extends State<PantryTab> {
                                   ),
                                   builder: (context) => AddProductSheet(
                                     householdId: widget.householdId,
+                                    barcode: rawBarcode,
                                   ),
                                 );
                               }
@@ -1036,6 +1060,7 @@ class _PantryTabState extends State<PantryTab> {
                                 ),
                                 builder: (context) => AddProductSheet(
                                   householdId: widget.householdId,
+                                  barcode: rawBarcode,
                                 ),
                               );
                             }
